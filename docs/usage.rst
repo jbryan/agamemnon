@@ -9,8 +9,8 @@ The following is an example of how to use Agamemnon in your own code
 
 First, we can decide which kind of data store we are creating.  In this case we're creating an InMemory data store
 
->>> config = {'agamemnon.keyspace':'agamemnontest', 'agamemnon.host_list':'["localhost:9160"]'}
->>> #config = {'agamemnon.keyspace':'memory'}
+>>> #config = {'agamemnon.keyspace':'agamemnontest', 'agamemnon.host_list':'["localhost:9160"]'}
+>>> config = {'agamemnon.keyspace':'memory'}
 >>> graph_db = load_from_settings(config)
 
 In honor of The Simpsons Movie, we'll create a node called spiderpig
