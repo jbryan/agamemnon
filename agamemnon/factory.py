@@ -4,7 +4,6 @@ import string
 import uuid
 import datetime
 from pycassa.cassandra.ttypes import NotFoundException
-from agamemnon import log
 from agamemnon.graph_constants import RELATIONSHIP_KEY_PATTERN, OUTBOUND_RELATIONSHIP_CF, RELATIONSHIP_INDEX, ENDPOINT_NAME_TEMPLATE, INBOUND_RELATIONSHIP_CF
 import pycassa
 from agamemnon.cassandra import CassandraDataStore
@@ -59,6 +58,24 @@ class DataStore(object):
             column_family.insert(key, serialized)
         else:
             column_family.insert(key, {super_key: serialized})
+
+    def get_all_outgoing_relationships(self, source_node, count=100):
+        source_key = RELATIONSHIP_KEY_PATTERN % (source_node.type, source_node.key)
+        try:
+            super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, count)
+        except NotFoundException:
+            super_columns = {}
+        return [self.get_outgoing_relationship(super_column[1]['rel_type'], source_node, super_column) for super_column in
+                super_columns.items()]
+
+    def get_all_incoming_relationships(self, target_node, count=100):
+        source_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
+        try:
+            super_columns = self.get(INBOUND_RELATIONSHIP_CF, source_key, count)
+        except NotFoundException:
+            super_columns = {}
+        return [self.get_outgoing_relationship(super_column[1]['rel_type'], target_node, super_column) for super_column in
+                super_columns.items()]
 
     def get_outgoing_relationships(self, source_node, rel_type, count=100):
         source_key = RELATIONSHIP_KEY_PATTERN % (source_node.type, source_node.key)
