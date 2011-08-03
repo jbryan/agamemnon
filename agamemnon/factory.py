@@ -10,6 +10,9 @@ from agamemnon.memory import InMemoryDataStore
 from agamemnon.exceptions import NodeNotFoundException
 import agamemnon.primitives as prim
 
+import logging
+
+log = logging.getLogger(__name__)
 
 class DataStore(object):
     def __init__(self, delegate):
@@ -300,17 +303,54 @@ class DataStore(object):
             raise NodeNotFoundException()
         return prim.Node(self, type, key, values)
 
-    def get_reference_node(self, name):
+    def get_reference_node(self, name='reference'):
         """
-        Nodes returned here are very easily referenced by name and then function as an index for all attached nodes
-        The most typical use case is to index all of the nodes of a certain type, but the functionality is not limited
-        to this.
+        Gets a root node for a particular type of node.  This can be used as an index to all nodes of this type via the
+        relationship 'instance'.  There is a meta-root called reference which is an index to all of the reference nodes.
+
+          >>> from birncommunity import data_store
+          >>> from birncommunity.test_utils import test_configurator
+          >>> test_configurator.cassandra_in_memory = True
+          >>> test_configurator.cassandra_drop_keyspace()
+          >>> test_configurator.cassandra_create_keyspace()
+          >>> config = test_configurator.create_config()
+          >>> store = data_store.from_settings(config)
+          >>> meta_ref = store.get_reference_node()
+          >>> print meta_ref
+          Node: reference => reference
+          >>> test_type_1 = store.get_reference_node('test_type_1')
+          >>> print test_type_1
+          Node: reference => test_type_1
+          >>> print store.create_node('test_type_1', 'test1')
+          Node: test_type_1 => test1
+          >>> for rel in test_type_1.instance.outgoing:
+          ...   print rel.target_node
+          Node: test_type_1 => test1
+          >>> sorted([rel.target_node.key for rel in meta_ref.instance.outgoing])
+          ['reference', 'test_type_1']
+
         """
         try:
-            node = self.get_node('reference', name)
+            ref_ref_node = self.get_node('reference', 'reference')
         except NodeNotFoundException:
-            node = self.create_node('reference', name, {'reference': 'reference'}, reference=True)
-        return node
+            ref_ref_node = self.create_node('reference', 'reference', {'reference':'reference'},
+                                                       reference=True)
+        try:
+            ref_node = self.get_node('reference', name)
+        except NodeNotFoundException:
+            ref_node = self.create_node('reference', name, {'reference': 'reference'}, reference=True)
+        rels = ref_ref_node.instance
+        rel = None
+        #TODO: we should use containment here.
+        for i in rels:
+            if i.rel_key == 'reference_%s' % name:
+                rel = i
+                break
+
+        if rel is None:
+            rel = self.create_relationship('instance', ref_ref_node, ref_node, key='reference_%s' % name)
+            log.debug("Created instance rel: %s" % rel)
+        return ref_node
 
     def deserialize_value(self, value):
         if isinstance(value, dict):

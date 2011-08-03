@@ -34,7 +34,7 @@ class GraphFunctionalTests(unittest.TestCase):
         reference_node = graph_db.get_reference_node('test_type')
         instances = ['spiderpig', 'cow']
         #Test to make sure that the correct instances are returned
-        for rel in reference_node.instance:
+        for rel in reference_node.instance.outgoing:
             instances.remove(rel.target_node.key)
         #Get all of the outgoing friend relationships for spiderpig and make sure that cow is the only one
         for rel in spiderpig.friend.outgoing:
