@@ -16,6 +16,8 @@ from pycassa.cassandra.ttypes import NotFoundException
 
 __author__ = 'trhowe'
 
+DEFAULT_COLUMN_COUNT = 1000
+
 class Relationship(object):
     """
     Represents a directed connection between two nodes
@@ -210,6 +212,25 @@ class Node(object):
     @property
     def type(self):
         return self._type
+
+    @property
+    def relationships(self):
+        class RelationshipsHolder(object):
+
+            def __init__(self, data_store, node):
+                self._data_store = data_store
+                self._node = node
+
+            @property
+            def outgoing(self):
+                return self._data_store.get_all_outgoing_relationships(self._node, DEFAULT_COLUMN_COUNT)
+
+            @property
+            def incoming(self):
+                return self._data_store.get_all_incoming_relationships(self._node, DEFAULT_COLUMN_COUNT)
+
+        return RelationshipsHolder(self._data_store, self)
+
 
     def __getattr__(self, item):
         if hasattr(self.__dict__, item):
