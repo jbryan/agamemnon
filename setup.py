@@ -6,7 +6,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 README = open('README.rst').read()
 CHANGES = open('CHANGES.txt').read()
 
-requires = ['pycassa', 'thrift05', 'setuptools']
+requires = ['pycassa', 'thrift05', 'setuptools','ordereddict']
 tests_requires = requires + ['nose', 'mock']
 
 setup(name='agamemnon',
@@ -23,7 +23,7 @@ setup(name='agamemnon',
       keywords='cassandra',
       packages=find_packages(),
       include_package_data=True,
-      zip_safe=True,
+      zip_safe=False,
       setup_requires=['nose>=0.11'],
       install_requires=requires,
       tests_require=tests_requires,
