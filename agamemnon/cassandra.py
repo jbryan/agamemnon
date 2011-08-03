@@ -37,13 +37,13 @@ class CassandraDataStore(object):
         if type in self._cf_cache.keys():
             return self._cf_cache[type]
         else:
+            column_family = None
             try:
                 column_family = cf.ColumnFamily(self._pool, type)
                 self._cf_cache[type] = column_family
             except NotFoundException:
                 if create:
-                    self.create_cf(type)
-                return None
+                    column_family = self.create_cf(type)
             return column_family
 
 

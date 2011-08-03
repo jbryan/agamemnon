@@ -58,7 +58,7 @@ class Relationship(object):
     @property
     def attributes(self):
         for key in self.new_values:
-                self.old_values[key] = self.new_values[key]
+            self.old_values[key] = self.new_values[key]
         return self.old_values
 
     def __getitem__(self, item):
@@ -66,6 +66,9 @@ class Relationship(object):
             return self.new_values[item]
         else:
             return self.old_values[item]
+
+    def __contains__(self, item):
+        return item in self.new_values.keys() or item in self.old_values.keys()
 
     def __setitem__(self, key, value):
         self.new_values[key] = value
@@ -88,12 +91,14 @@ class Relationship(object):
         self.data_store.insert(self.type, self.source_node.key, self.old_values, super_key=self._rel_id)
 
     def __str__(self):
-        return '%s: %s -> %s' % (self._type, self.source_node.key, self.target_node.key)
+        return '%s: %s:%s -> %s:%s' % (
+        self._type, self.source_node.type, self.source_node.key, self.target_node.type, self.target_node.key)
 
     def __eq__(self, other):
         if not isinstance(other, Relationship):
             return False
         return other.rel_key == self.rel_key
+
 
 class RelationshipList(object):
     def __init__(self, relationships):
@@ -113,6 +118,7 @@ class RelationshipList(object):
         for rel in self._relationships:
             yield rel
 
+
 class RelationshipFactory(object):
     def __init__(self, data_store, parent_node, rel_type):
         self._rel_type = rel_type
@@ -121,8 +127,7 @@ class RelationshipFactory(object):
 
     #TODO: specify order as from key vs timestamp
     def __call__(self, node, key=None, **kwargs):
-        return self._data_store.create_relationship(self._rel_type, self._parent_node, node, key,
-                                                    dict(**kwargs))
+        return self._data_store.create_relationship(self._rel_type, self._parent_node, node, key, kwargs)
 
 
     #TODO: Implement indexing solution here
@@ -156,6 +161,9 @@ class RelationshipFactory(object):
             rels = []
         return RelationshipList(rels)
 
+    @property
+    def parent_node(self):
+        return self._parent_node
     
     @property
     def outgoing(self):
@@ -176,7 +184,7 @@ class RelationshipFactory(object):
 
     def __len__(self):
         return len(self.outgoing) + len(self.incoming)
-    
+
     def __iter__(self):
         for rel in self.outgoing:
             yield rel
