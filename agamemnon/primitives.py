@@ -88,7 +88,7 @@ class Relationship(object):
         self.data_store.insert(self.type, self.source_node.key, self.old_values, super_key=self._rel_id)
 
     def __str__(self):
-        return '%s: %s -> %s' % (self._type, self.target_node.key, self.target_node.key)
+        return '%s: %s -> %s' % (self._type, self.source_node.key, self.target_node.key)
 
     def __eq__(self, other):
         if not isinstance(other, Relationship):
