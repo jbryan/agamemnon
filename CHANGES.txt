@@ -1,3 +1,8 @@
+0.2.1.3
+==============
+
+* fixed bug with in memory column comparisons
+
 0.2.1.2
 ==============
 
