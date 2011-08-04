@@ -331,17 +331,11 @@ class DataStore(object):
 #            node = self.create_node('reference', name, {'reference': 'reference'}, reference=True)
 #            self.get_reference_node().instance(node)
 #        return node
-
-        try:
-            ref_ref_node = self.get_node('reference', 'reference')
-        except NodeNotFoundException:
-            ref_ref_node = self.create_node('reference', 'reference', {'reference':'reference'},
-                                                       reference=True)
         try:
             ref_node = self.get_node('reference', name)
         except NodeNotFoundException:
             ref_node = self.create_node('reference', name, {'reference': 'reference'}, reference=True)
-            ref_ref_node.instance(ref_node, key='reference_%s' % name)
+            self.get_reference_node().instance(ref_node, key='reference_%s' % name)
 
         return ref_node
 
@@ -377,6 +371,8 @@ class DataStore(object):
             return '$f%r' % value
         elif isinstance(value, str):
             return value
+        elif isinstance(value, unicode):
+            return value.encode('utf-8')
         elif isinstance(value, dict):
             return self.serialize_columns(value)
         elif isinstance(value, datetime.datetime):
