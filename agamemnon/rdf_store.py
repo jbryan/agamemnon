@@ -7,6 +7,7 @@ from agamemnon.factory import load_from_settings
 from agamemnon.exceptions import NodeNotFoundException
 import pycassa
 import json
+import uuid
 import logging
 
 register('Agamemnon', Store, 
@@ -22,12 +23,13 @@ class AgamemnonStore(Store):
     
     """
 
-    node_namespace_base = "https://github.com/globusonline/agamemnon/nodes/"
-    relationship_namespace_base = "https://github.com/globusonline/agamemnon/nodes/"
     
     def __init__(self, configuration=None, identifier=None, data_store=None):
         super(AgamemnonStore, self).__init__(configuration)
         self.identifier = identifier
+
+        self.node_namespace_base = "https://github.com/globusonline/agamemnon/nodes/"
+        self.relationship_namespace_base = "https://github.com/globusonline/agamemnon/nodes/"
 
         if configuration:
             self._process_config(configuration)
@@ -81,6 +83,22 @@ class AgamemnonStore(Store):
         else:
             self.unignore('reference')
 
+    @property
+    def node_namespace_base(self):
+        return self._node_namespace_base
+
+    @node_namespace_base.setter
+    def node_namespace_base(self, value):
+        self._node_namespace_base = Namespace(value)
+
+    @property
+    def relationship_namespace_base(self):
+        return self._relationship_namespace_base
+
+    @relationship_namespace_base.setter
+    def relationship_namespace_base(self, value):
+        self._relationship_namespace_base = Namespace(value)
+    
     def ignore(self, node_type):
         self._ignored_node_types.add(node_type)
 
@@ -330,7 +348,7 @@ class AgamemnonStore(Store):
     def node_to_uri(self, node):
         ns = self.namespace(node.type)
         if ns is None:
-            ns = self.unmunge_node_type(node.type)
+            ns = Namespace(self.node_namespace_base[node.type + "#"])
             self.bind(node.type, ns)
         uri = ns[node.key]
         log.debug("Converted node %s to uri %s" % (node, uri))
@@ -340,10 +358,10 @@ class AgamemnonStore(Store):
         node_type, node_id = self.uri_to_node_def(uri)
         try:
             log.debug("Looking up node: %s => %s" % (node_type,node_id))
-            return self.data_store.get_node(str(node_type), str(node_id))
+            return self.data_store.get_node(node_type, node_id)
         except NodeNotFoundException:
             if create:
-                node = self.data_store.create_node(str(node_type), str(node_id))
+                node = self.data_store.create_node(node_type, node_id)
                 log.debug("Created node: %s" % node)
             else:
                 raise
@@ -351,25 +369,11 @@ class AgamemnonStore(Store):
 
     def uri_to_node_def(self, uri):
         namespace, node_id = split_uri(uri)
-        prefix = self.prefix(namespace)
-        if prefix is None:
-            node_type = self.munge_namespace(namespace)
+        node_type = self.prefix(namespace)
+        if node_type is None:
+            node_type = str(uuid.uuid1()).replace("-","_")
             self.bind(node_type, namespace)
-        else:
-            node_type = prefix
         return node_type, node_id
-
-    def munge_namespace(self,namespace):
-        """ We want to remove the base name if applicable and remove all /'s"""
-        if namespace.startswith(self.node_namespace_base):
-            namespace = namespace[len(self.node_namespace_base):]
-        return namespace[:-1].replace("/","_")
-
-    def unmunge_node_type(self, node_type):
-        ns = node_type.replace("_","/") + "#"
-        if "://" not in ns:
-            ns = self.node_namespace_base + ns
-        return Namespace(ns)
 
     def rel_type_to_uri(self, rel_type):
         return URIRef(rel_type)

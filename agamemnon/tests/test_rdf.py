@@ -12,6 +12,8 @@ import rdflib.plugin
 from agamemnon.rdf_store import AgamemnonStore
 from nose.plugins.attrib import attr
 
+import uuid
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -99,20 +101,17 @@ class GraphTestCase(unittest.TestCase):
         pass
 
     def testUriToNode(self):
+        #test unbound uri
         uri = URIRef("http://www.example.org/blah#bleh")
         node = self.graph1.store.uri_to_node(uri, True)
-        self.assertEqual(node.type, "blah")
+        uuid.UUID(node.type.replace("_","-"))
         self.assertEqual(node.key, "bleh")
 
+        # teset bound uri
         self.graph1.bind("bibble", "http://www.bibble.com/rdf/bibble#")
         uri = URIRef("http://www.bibble.com/rdf/bibble#babble")
         node = self.graph1.store.uri_to_node(uri, True)
         self.assertEqual(node.type, "bibble")
-        self.assertEqual(node.key, "babble")
-
-        uri = URIRef("http://www.bleh.com/rdf/bleh#babble")
-        node = self.graph1.store.uri_to_node(uri, True)
-        self.assertEqual(node.type, "http:__www.bleh.com_rdf_bleh")
         self.assertEqual(node.key, "babble")
 
     def testAdd(self):
