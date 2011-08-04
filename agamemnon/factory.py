@@ -217,7 +217,6 @@ class DataStore(object):
         > node_a =
 
         """
-        print "Finding: %s, %r, %r" % (node_a, node_b_key, rel_type)
         index = self.delegate.get_cf(RELATIONSHIP_INDEX)
         node_a_row_key = ENDPOINT_NAME_TEMPLATE % (node_a.type, node_a.key)
         rel_list = []
@@ -237,10 +236,7 @@ class DataStore(object):
 
                 rel_list.append(relationship)
         except NotFoundException:
-            print "Not found: %s, %r, %r" % (node_a, node_b_key, rel_type)
             pass
-
-        print rel_list
         return rel_list
 
     def create_node(self, type, key, args={}, reference=False):
