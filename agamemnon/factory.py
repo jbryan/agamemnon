@@ -92,7 +92,7 @@ class DataStore(object):
         except NotFoundException:
             super_columns = {}
         return [self.get_outgoing_relationship(rel_type, source_node, super_column) for super_column in
-                super_columns.items()]
+                super_columns.items() if len(super_column) > 0]
 
 
     def get_incoming_relationships(self, target_node, rel_type, count=100):
@@ -110,7 +110,7 @@ class DataStore(object):
         except NotFoundException:
             super_columns = {}
         return [self.get_incoming_relationship(rel_type, target_node, super_column) for super_column in
-                super_columns.items()]
+                super_columns.items() if len(super_column) > 0]
 
     def get_outgoing_relationship(self, rel_type, source_node, super_column):
         """
@@ -167,8 +167,8 @@ class DataStore(object):
         rel_to_key = ENDPOINT_NAME_TEMPLATE % (to_type, to_key)
 
         with self.batch():
-            self.delete(INBOUND_RELATIONSHIP_CF, rel_to_key, super_key=RELATIONSHIP_KEY_PATTERN % (rel_type, rel_id))
-            self.delete(OUTBOUND_RELATIONSHIP_CF, rel_from_key, super_key=RELATIONSHIP_KEY_PATTERN % (rel_type, rel_id))
+            self.delete(INBOUND_RELATIONSHIP_CF, rel_to_key, super_key=rel_id)
+            self.delete(OUTBOUND_RELATIONSHIP_CF, rel_from_key, super_key=rel_id)
             self.delete(RELATIONSHIP_INDEX, rel_to_key, super_key=from_key, columns=[rel_type])
             self.delete(RELATIONSHIP_INDEX, rel_from_key, super_key=to_key, columns=[rel_type])
 

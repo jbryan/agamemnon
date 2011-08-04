@@ -37,7 +37,7 @@ class InMemoryDataStore(object):
 
         if self.in_batch:
             if columns is not None and super_column is not None\
-                    and not ('remove', cf.name, row, super_column) in self.transactions.keys():
+            and not ('remove', cf.name, row, super_column) in self.transactions.keys():
                 key = ('remove', cf.name, row, tuple(columns), super_column)
             elif columns is not None and not ('remove', cf.name, row) in self.transactions.keys():
                 key = ('remove', cf.name, row, tuple(columns))
@@ -89,7 +89,11 @@ class ColumnFamily(object):
                         if count > column_count:
                             break
                         if column_start is not None and column_finish is not None:
-                            if c >= column_start and c <= column_finish:
+                            if ((cmp(c, column_start) == 1
+                                and cmp(c, column_finish) == -1)
+                                or cmp(c, column_finish) == 0
+                                or cmp(c, column_start) == 0):
+                                
                                 results[c] = data_columns[c]
                         else:
                             results[c] = data_columns[c]
