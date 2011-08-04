@@ -66,7 +66,7 @@ class DataStore(object):
         except NotFoundException:
             super_columns = {}
         return [self.get_outgoing_relationship(super_column[1]['rel_type'], source_node, super_column) for super_column in
-                super_columns.items()]
+                super_columns.items() if len(super_column[1]) > 0]
 
     def get_all_incoming_relationships(self, target_node, count=100):
         source_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
