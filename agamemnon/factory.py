@@ -62,7 +62,7 @@ class DataStore(object):
     def get_all_outgoing_relationships(self, source_node, count=100):
         source_key = RELATIONSHIP_KEY_PATTERN % (source_node.type, source_node.key)
         try:
-            super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, count)
+            super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, column_count=count)
         except NotFoundException:
             super_columns = {}
         return [self.get_outgoing_relationship(super_column[1]['rel_type'], source_node, super_column) for super_column in
@@ -71,7 +71,7 @@ class DataStore(object):
     def get_all_incoming_relationships(self, target_node, count=100):
         source_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
         try:
-            super_columns = self.get(INBOUND_RELATIONSHIP_CF, source_key, count)
+            super_columns = self.get(INBOUND_RELATIONSHIP_CF, source_key, column_count=count)
         except NotFoundException:
             super_columns = {}
         return [self.get_incoming_relationship(super_column[1]['rel_type'], target_node, super_column) for super_column in
