@@ -5,6 +5,7 @@ from rdflib.namespace import Namespace, split_uri, urldefrag
 from rdflib import URIRef, Literal
 from agamemnon.factory import load_from_settings
 from agamemnon.exceptions import NodeNotFoundException
+from pycassa.cassandra.ttypes import NotFoundException
 import pycassa
 import json
 import uuid
@@ -14,6 +15,10 @@ register('Agamemnon', Store,
                 'agamemnon.rdf_store', 'AgamemnonStore')
 
 log = logging.getLogger(__name__)
+
+RDF_NAMESPACE_CF = "__RDF_NAMESPACE_CF"
+RDF_PREFIX_CF = "__RDF_PREFIX_CF"
+RDF_DEFAULT_PREFIX = "__DEFAULT__PREFIX"
 
 class AgamemnonStore(Store):
     """
@@ -29,10 +34,10 @@ class AgamemnonStore(Store):
         self.identifier = identifier
 
         # namespace and prefix indexes
+        self._ignored_node_types = set(['reference'])
         self.__namespace = {}
         self.__prefix = {}
-        self.node_namespace_base = "https://github.com/globusonline/agamemnon/nodes/"
-        self.relationship_namespace_base = "https://github.com/globusonline/agamemnon/rels/"
+        self.namespace_base = "http://localhost/"
 
         if configuration:
             self._process_config(configuration)
@@ -41,7 +46,6 @@ class AgamemnonStore(Store):
             self.data_store = data_store
 
 
-        self._ignored_node_types = set(['reference'])
 
     def open(self, configuration=None, create=False, repl_factor = 1):
         if configuration:
@@ -70,7 +74,8 @@ class AgamemnonStore(Store):
     @data_store.setter
     def data_store(self, ds):
         self._ds = ds
-        #self.load_namespaces()
+        if self.namespace("") is None:
+            self.bind("",self.namespace_base)
 
     @property
     def ignore_reference_nodes(self):
@@ -84,23 +89,13 @@ class AgamemnonStore(Store):
             self.unignore('reference')
 
     @property
-    def node_namespace_base(self):
-        return self._node_namespace_base
+    def namespace_base(self):
+        return self._namespace_base
 
-    @node_namespace_base.setter
-    def node_namespace_base(self, value):
-        self._node_namespace_base = Namespace(value)
+    @namespace_base.setter
+    def namespace_base(self, value):
+        self._namespace_base = Namespace(value)
 
-    @property
-    def relationship_namespace_base(self):
-        return self._relationship_namespace_base
-
-    @relationship_namespace_base.setter
-    def relationship_namespace_base(self, value):
-        self._relationship_namespace_base = Namespace(value)
-        # we need this bound as the default namespace
-        self.bind("", self._relationship_namespace_base)
-    
     def ignore(self, node_type):
         self._ignored_node_types.add(node_type)
 
@@ -351,7 +346,7 @@ class AgamemnonStore(Store):
     def node_to_uri(self, node):
         ns = self.namespace(node.type)
         if ns is None:
-            ns = Namespace(self.node_namespace_base[node.type + "#"])
+            ns = Namespace(self.namespace_base[node.type + "#"])
             self.bind(node.type, ns)
         uri = ns[node.key]
         log.debug("Converted node %s to uri %s" % (node, uri))
@@ -394,7 +389,7 @@ class AgamemnonStore(Store):
             else:
                 uri = URIRef(rel_type)
         else:
-            uri = self.relationship_namespace_base[rel_type]
+            uri = self.namespace("")[rel_type]
 
         return uri
 
@@ -411,15 +406,35 @@ class AgamemnonStore(Store):
         return rel_type.encode('utf-8')
 
     def bind(self, prefix, namespace):
-        self.__prefix[Namespace(namespace)] = unicode(prefix)
-        self.__namespace[prefix] = Namespace(namespace)
+        if not prefix:
+            prefix = RDF_DEFAULT_PREFIX
+        prefix = prefix.encode("utf-8")
+        namespace = namespace.encode("utf-8")
+        self.data_store.insert(RDF_NAMESPACE_CF, prefix, {'namespace':namespace})
+        self.data_store.insert(RDF_PREFIX_CF, namespace, {'prefix':prefix})
+        #self.__prefix[Namespace(namespace)] = unicode(prefix)
+        #self.__namespace[prefix] = Namespace(namespace)
 
 
     def namespace(self, prefix):
-        return self.__namespace.get(prefix, None)
+        if not prefix:
+            prefix = RDF_DEFAULT_PREFIX
+        try:
+            prefix = prefix.encode("utf-8")
+            ns = self.data_store.get(RDF_NAMESPACE_CF, prefix)['namespace']
+            return Namespace(ns)
+        except NotFoundException:
+            return None
 
     def prefix(self, namespace):
-        return self.__prefix.get(Namespace(namespace), None)
+        try:
+            namespace = namespace.encode("utf-8")
+            prefix = self.data_store.get(RDF_PREFIX_CF, namespace)['prefix']
+            if prefix == RDF_DEFAULT_PREFIX:
+                prefix = ""
+            return prefix
+        except NotFoundException:
+            return None
 
     def namespaces(self):
         for prefix, namespace in self.__namespace.iteritems():

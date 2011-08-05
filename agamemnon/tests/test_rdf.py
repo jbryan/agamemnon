@@ -23,15 +23,13 @@ class GraphTestCase(unittest.TestCase):
         #'agamemnon.keyspace' : 'testagamemnon1',
         'agamemnon.keyspace' : 'memory',
         'agamemnon.host_list' : '["localhost:9160"]',
-        'agamemnon.rdf_node_namespace_base' : 'http://www.example.org/',
-        'agamemnon.rdf_relationship_namespace_base' : 'http://www.example.org/rels/',
+        'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
     }
     settings2 = {
         #'agamemnon.keyspace' : 'testagamemnon2',
         'agamemnon.keyspace' : 'memory',
         'agamemnon.host_list' : '["localhost:9160"]',
-        'agamemnon.rdf_node_namespace_base' : 'http://www.example.org/',
-        'agamemnon.rdf_relationship_namespace_base' : 'http://www.example.org/rels/',
+        'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
     }
 
     def setUp(self):
@@ -86,7 +84,7 @@ class GraphTestCase(unittest.TestCase):
 
     def testRelationshipToUri(self):
         uri = self.graph1.store.rel_type_to_uri('likes')
-        self.assertEqual(uri, URIRef("http://www.example.org/rels/likes"))
+        self.assertEqual(uri, URIRef("http://www.example.org/likes"))
 
         uri = self.graph1.store.rel_type_to_uri('emotions:likes')
         self.assertEqual(uri, URIRef("emotions:likes"))
@@ -106,7 +104,7 @@ class GraphTestCase(unittest.TestCase):
         self.assertEqual(uri, URIRef("http://www.bibble.com/rdf/bibble#babble"))
 
     def testUriToRelationship(self):
-        rel_type = self.graph1.store.uri_to_rel_type(URIRef("http://www.example.org/rels/likes"))
+        rel_type = self.graph1.store.uri_to_rel_type(URIRef("http://www.example.org/likes"))
         self.assertEqual(rel_type, 'likes')
 
         rel_type = self.graph1.store.uri_to_rel_type(URIRef('emotions:likes'))
