@@ -20,15 +20,15 @@ log = logging.getLogger(__name__)
 class GraphTestCase(unittest.TestCase):
     store_name = 'Agamemnon'
     settings1 = {
-        'agamemnon.keyspace' : 'testagamemnon1',
-        #'agamemnon.keyspace' : 'memory',
+        #'agamemnon.keyspace' : 'testagamemnon1',
+        'agamemnon.keyspace' : 'memory',
         'agamemnon.host_list' : '["localhost:9160"]',
         'agamemnon.rdf_node_namespace_base' : 'http://www.example.org/',
         'agamemnon.rdf_relationship_namespace_base' : 'http://www.example.org/rels/',
     }
     settings2 = {
-        'agamemnon.keyspace' : 'testagamemnon2',
-        #'agamemnon.keyspace' : 'memory',
+        #'agamemnon.keyspace' : 'testagamemnon2',
+        'agamemnon.keyspace' : 'memory',
         'agamemnon.host_list' : '["localhost:9160"]',
         'agamemnon.rdf_node_namespace_base' : 'http://www.example.org/',
         'agamemnon.rdf_relationship_namespace_base' : 'http://www.example.org/rels/',
@@ -355,16 +355,25 @@ class GraphTestCase(unittest.TestCase):
         self.assertEquals((michel, likes, cheese) in g1, True)
 
     def testSerialize(self):
-        self.addStuff(self.graph1)
-        v = self.graph1.serialize()
-        log.info(v)
-        self.graph2.parse(data=v)
+        parse_serial_pairs = [
+            ('xml','xml'),
+            # we will add more once we support context aware graphs
+        ]
+        for parse, serial in parse_serial_pairs:
+            self.addStuff(self.graph1)
+            v = self.graph1.serialize(format=serial)
+            log.info(v)
 
-        for triple in self.graph1:
-            self.assertTrue(triple in self.graph2)
+            self.graph2.parse(data=v,format=parse)
 
-        for triple in self.graph2:
-            self.assertTrue(triple in self.graph1)
+            for triple in self.graph1:
+                self.assertTrue(triple in self.graph2)
+
+            for triple in self.graph2:
+                self.assertTrue(triple in self.graph1)
+
+            self.graph1.remove((None,None,None))
+            self.graph2.remove((None,None,None))
 
         
 
