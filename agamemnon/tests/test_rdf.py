@@ -20,14 +20,14 @@ log = logging.getLogger(__name__)
 class GraphTestCase(unittest.TestCase):
     store_name = 'Agamemnon'
     settings1 = {
-        #'agamemnon.keyspace' : 'testagamemnon1',
-        'agamemnon.keyspace' : 'memory',
+        'agamemnon.keyspace' : 'testagamemnon1',
+        #'agamemnon.keyspace' : 'memory',
         'agamemnon.host_list' : '["localhost:9160"]',
         'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
     }
     settings2 = {
-        #'agamemnon.keyspace' : 'testagamemnon2',
-        'agamemnon.keyspace' : 'memory',
+        'agamemnon.keyspace' : 'testagamemnon2',
+        #'agamemnon.keyspace' : 'memory',
         'agamemnon.host_list' : '["localhost:9160"]',
         'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
     }
@@ -38,6 +38,7 @@ class GraphTestCase(unittest.TestCase):
 
         self.graph1.open(self.settings1, True)
         self.graph2.open(self.settings2, True)
+
         self.oNS = Namespace("http://www.example.org/things#")
         self.sNS = Namespace("http://www.example.org/people#")
         self.pNS = Namespace("http://www.example.org/relations/")
@@ -61,6 +62,7 @@ class GraphTestCase(unittest.TestCase):
 
     def tearDown(self):
         self.graph1.close()
+        self.graph2.close()
 
     def addStuff(self,graph):
         graph.add((self.tarek, self.likes, self.pizza))
@@ -73,61 +75,71 @@ class GraphTestCase(unittest.TestCase):
         graph.add((self.bob, self.named, Literal("Bob")))
 
     def removeStuff(self,graph):
-        graph.remove((self.tarek, self.likes, self.pizza))
-        graph.remove((self.tarek, self.likes, self.cheese))
-        graph.remove((self.michel, self.likes, self.pizza))
-        graph.remove((self.michel, self.likes, self.cheese))
-        graph.remove((self.bob, self.likes, self.cheese))
-        graph.remove((self.bob, self.hates, self.pizza))
-        graph.remove((self.bob, self.hates, self.michel)) # gasp!
-        graph.remove((self.bob, self.named, Literal("Bob")))
+        graph.remove((None, None, None))
+
+
+    def testBind(self):
+        store = self.graph1.store
+        self.assertEqual(store.namespace(""), Namespace("http://www.example.org/"))
+        self.assertEqual(store.namespace('people'),self.sNS)
+        self.assertEqual(store.namespace('relations'),self.pNS)
+        self.assertEqual(store.namespace('things'),self.oNS)
+        self.assertEqual(store.namespace('blech'),None)
+
+        self.assertEqual("", store.prefix(Namespace("http://www.example.org/")))
+        self.assertEqual('people',store.prefix(self.sNS))
+        self.assertEqual('relations',store.prefix(self.pNS))
+        self.assertEqual('things',store.prefix(self.oNS))
+        self.assertEqual(None,store.prefix("blech"))
+
+        self.assertEqual(len(list(self.graph1.namespaces())), 7)
 
     def testRelationshipToUri(self):
-        uri = self.graph1.store.rel_type_to_uri('likes')
+        uri = self.graph1.store.rel_type_to_ident('likes')
         self.assertEqual(uri, URIRef("http://www.example.org/likes"))
 
-        uri = self.graph1.store.rel_type_to_uri('emotions:likes')
+        uri = self.graph1.store.rel_type_to_ident('emotions:likes')
         self.assertEqual(uri, URIRef("emotions:likes"))
 
         self.graph1.bind('emotions','http://www.emo.org/')
-        uri = self.graph1.store.rel_type_to_uri('emotions:likes')
+        uri = self.graph1.store.rel_type_to_ident('emotions:likes')
         self.assertEqual(uri, URIRef("http://www.emo.org/likes"))
 
     def testNodeToUri(self):
         node = self.graph1.store._ds.create_node('blah', 'bleh')
-        uri = self.graph1.store.node_to_uri(node)
+        uri = self.graph1.store.node_to_ident(node)
         self.assertEqual(uri, URIRef("http://www.example.org/blah#bleh"))
 
         self.graph1.bind("bibble", "http://www.bibble.com/rdf/bibble#")
         node = self.graph1.store._ds.create_node('bibble', 'babble')
-        uri = self.graph1.store.node_to_uri(node)
+        uri = self.graph1.store.node_to_ident(node)
         self.assertEqual(uri, URIRef("http://www.bibble.com/rdf/bibble#babble"))
 
     def testUriToRelationship(self):
-        rel_type = self.graph1.store.uri_to_rel_type(URIRef("http://www.example.org/likes"))
+        rel_type = self.graph1.store.ident_to_rel_type(URIRef("http://www.example.org/likes"))
         self.assertEqual(rel_type, 'likes')
 
-        rel_type = self.graph1.store.uri_to_rel_type(URIRef('emotions:likes'))
+        rel_type = self.graph1.store.ident_to_rel_type(URIRef('emotions:likes'))
         prefix, rel_type = rel_type.split(":",1)
         uuid.UUID(prefix.replace("_","-"))
         self.assertEqual(rel_type, "likes")
 
         self.graph1.bind('emotions','http://www.emo.org/')
-        rel_type = self.graph1.store.uri_to_rel_type(URIRef("http://www.emo.org/likes"))
+        rel_type = self.graph1.store.ident_to_rel_type(URIRef("http://www.emo.org/likes"))
         self.assertEqual(rel_type, 'emotions:likes')
         
 
     def testUriToNode(self):
         #test unbound uri
         uri = URIRef("http://www.example.org/blah#bleh")
-        node = self.graph1.store.uri_to_node(uri, True)
+        node = self.graph1.store.ident_to_node(uri, True)
         uuid.UUID(node.type.replace("_","-"))
         self.assertEqual(node.key, "bleh")
 
         # teset bound uri
         self.graph1.bind("bibble", "http://www.bibble.com/rdf/bibble#")
         uri = URIRef("http://www.bibble.com/rdf/bibble#babble")
-        node = self.graph1.store.uri_to_node(uri, True)
+        node = self.graph1.store.ident_to_node(uri, True)
         self.assertEqual(node.type, "bibble")
         self.assertEqual(node.key, "babble")
 
@@ -373,6 +385,28 @@ class GraphTestCase(unittest.TestCase):
             self.graph1.remove((None,None,None))
             self.graph2.remove((None,None,None))
 
+
+    #def testParse(self):
+        ## borrowed from http://en.wikipedia.org/wiki/Resource_Description_Framework
+        #rdf = """
+            #<rdf:RDF
+            #xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+            #xmlns:foaf="http://xmlns.com/foaf/0.1/" 
+            #xmlns:dc="http://purl.org/dc/elements/1.1/">
+                    #<rdf:Description rdf:about="http://en.wikipedia.org/wiki/Tony_Benn">
+                            #<dc:title>Tony Benn</dc:title>
+                            #<dc:publisher>Wikipedia</dc:publisher>
+                            #<foaf:primaryTopic>
+                                #<foaf:Person>
+                                    #<foaf:name>Tony Benn</foaf:name>  
+                                #</foaf:Person>
+                            #</foaf:primaryTopic>
+                    #</rdf:Description>
+            #</rdf:RDF>
+        #"""
+
+        #self.graph1.parse(data=rdf)
+        #log.info(self.graph1.serialize())
         
 
 
