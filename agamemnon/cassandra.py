@@ -12,6 +12,7 @@ class CassandraDataStore(object):
         self._pool = pool
         self._keyspace = keyspace
         self._batch = None
+        self.batch_count = 0
         if not self.cf_exists(OUTBOUND_RELATIONSHIP_CF):
             self.create_cf(OUTBOUND_RELATIONSHIP_CF, super=True)
         if not self.cf_exists(INBOUND_RELATIONSHIP_CF):
@@ -58,11 +59,15 @@ class CassandraDataStore(object):
         if self._batch is not None:
             self._batch.remove(column_family, key, columns, super_column)
         else:
-            self.get_cf(column_family).remove(key, columns=columns, super_column=super_column)
+            column_family.remove(key, columns=columns, super_column=super_column)
 
     def start_batch(self):
+        self.in_batch = True
+        self.batch_count += 1
         self._batch = Mutator(self._pool)
 
     def commit_batch(self):
-        self._batch.send()
-        self._batch = None
+        self.batch_count -= 1
+        if not self.batch_count:
+            self._batch.send()
+            self._batch = None
