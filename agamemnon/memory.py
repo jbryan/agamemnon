@@ -2,6 +2,9 @@ import operator
 from ordereddict import OrderedDict
 from pycassa.cassandra.ttypes import NotFoundException
 from agamemnon.graph_constants import ASCII
+import logging
+
+log = logging.getLogger()
 
 class InMemoryDataStore(object):
     def __init__(self):
@@ -34,7 +37,7 @@ class InMemoryDataStore(object):
     def remove(self, cf, row, columns=None, super_column=None):
         def execute():
             cf.remove(row, columns=columns, super_column=super_column)
-
+            
         if self.in_batch:
             if columns is not None and super_column is not None\
             and not ('remove', cf.name, row, super_column) in self.transactions.keys():
@@ -64,10 +67,11 @@ class InMemoryDataStore(object):
 
 
 class ColumnFamily(object):
-    def __init__(self, name, sort):
+    def __init__(self, name, sort, super=False):
         self.data = {}
         self.sort = sort
         self.name = name
+        self.super = super
 
     def get(self, row, columns=None, column_start=None, super_column=None, column_finish=None, column_count=100):
         try:
@@ -89,8 +93,8 @@ class ColumnFamily(object):
                         if count > column_count:
                             break
                         if column_start is not None and column_finish is not None:
-                            if ((cmp(c, column_start) == 1
-                                and cmp(c, column_finish) == -1)
+                            if ((cmp(c, column_start) > 0
+                                and cmp(c, column_finish) < 0)
                                 or cmp(c, column_finish) == 0
                                 or cmp(c, column_start) == 0):
                                 
@@ -120,15 +124,28 @@ class ColumnFamily(object):
     def remove(self, row, columns=None, super_column=None):
         try:
             if columns is None and super_column is None:
-                self.data[row].clear()
+                row_data = self.data[row]
+                for key, value in row_data.items():
+                    if isinstance(value, OrderedDict):
+                        value.clear()
+                    else:
+                        del(row_data[key])
             elif super_column is None:
                 row_data = self.data[row]
                 for c in columns:
                     if c in row_data:
-                        del(row_data[c])
+                        value = row_data[c]
+                        if isinstance(value, OrderedDict):
+                            value.clear()
+                        else:
+                            del(row_data[c])
             elif columns is None:
-                row_data = self.data[row]
-                row_data[super_column].clear()
+                for key, value in self.data[row].items():
+                    row_data = self.data[row]
+                    if isinstance(value, OrderedDict):
+                        value.clear()
+                    else:
+                        del(row_data[key])
             else:
                 sc = self.data[row][super_column]
                 for c in columns:
