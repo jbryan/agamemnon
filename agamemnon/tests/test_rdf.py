@@ -20,15 +20,15 @@ log = logging.getLogger(__name__)
 class GraphTestCase(unittest.TestCase):
     store_name = 'Agamemnon'
     settings1 = {
-        #'agamemnon.keyspace' : 'testagamemnon1',
-        'agamemnon.keyspace' : 'memory',
+        'agamemnon.keyspace' : 'testagamemnon1',
+        #'agamemnon.keyspace' : 'memory',
         'agamemnon.host_list' : '["localhost:9160"]',
         'agamemnon.rdf_node_namespace_base' : 'http://www.example.org/',
         'agamemnon.rdf_relationship_namespace_base' : 'http://www.example.org/rels/',
     }
     settings2 = {
-        #'agamemnon.keyspace' : 'testagamemnon2',
-        'agamemnon.keyspace' : 'memory',
+        'agamemnon.keyspace' : 'testagamemnon2',
+        #'agamemnon.keyspace' : 'memory',
         'agamemnon.host_list' : '["localhost:9160"]',
         'agamemnon.rdf_node_namespace_base' : 'http://www.example.org/',
         'agamemnon.rdf_relationship_namespace_base' : 'http://www.example.org/rels/',
@@ -85,7 +85,15 @@ class GraphTestCase(unittest.TestCase):
         graph.remove((self.bob, self.named, Literal("Bob")))
 
     def testRelationshipToUri(self):
-        pass
+        uri = self.graph1.store.rel_type_to_uri('likes')
+        self.assertEqual(uri, URIRef("http://www.example.org/rels/likes"))
+
+        uri = self.graph1.store.rel_type_to_uri('emotions:likes')
+        self.assertEqual(uri, URIRef("emotions:likes"))
+
+        self.graph1.bind('emotions','http://www.emo.org/')
+        uri = self.graph1.store.rel_type_to_uri('emotions:likes')
+        self.assertEqual(uri, URIRef("http://www.emo.org/likes"))
 
     def testNodeToUri(self):
         node = self.graph1.store._ds.create_node('blah', 'bleh')
@@ -98,7 +106,18 @@ class GraphTestCase(unittest.TestCase):
         self.assertEqual(uri, URIRef("http://www.bibble.com/rdf/bibble#babble"))
 
     def testUriToRelationship(self):
-        pass
+        rel_type = self.graph1.store.uri_to_rel_type(URIRef("http://www.example.org/rels/likes"))
+        self.assertEqual(rel_type, 'likes')
+
+        rel_type = self.graph1.store.uri_to_rel_type(URIRef('emotions:likes'))
+        prefix, rel_type = rel_type.split(":",1)
+        uuid.UUID(prefix.replace("_","-"))
+        self.assertEqual(rel_type, "likes")
+
+        self.graph1.bind('emotions','http://www.emo.org/')
+        rel_type = self.graph1.store.uri_to_rel_type(URIRef("http://www.emo.org/likes"))
+        self.assertEqual(rel_type, 'emotions:likes')
+        
 
     def testUriToNode(self):
         #test unbound uri
@@ -131,6 +150,7 @@ class GraphTestCase(unittest.TestCase):
         cheese = self.cheese
         asserte = self.assertEquals
         triples = self.graph1.triples
+        named = self.named
         Any = None
 
         self.addStuff(self.graph1)
@@ -140,6 +160,7 @@ class GraphTestCase(unittest.TestCase):
         asserte(len(list(triples((Any, hates, pizza)))), 1)
         asserte(len(list(triples((Any, likes, cheese)))), 3)
         asserte(len(list(triples((Any, hates, cheese)))), 0)
+        asserte(len(list(triples((Any, named, Literal("Bob"))))), 1)
 
         # unbound objects
         asserte(len(list(triples((michel, likes, Any)))), 2)
@@ -159,7 +180,7 @@ class GraphTestCase(unittest.TestCase):
 
         # unbound predicates, objects
         asserte(len(list(triples((michel, Any, Any)))), 2)
-        asserte(len(list(triples((bob, Any, Any)))), 3)
+        asserte(len(list(triples((bob, Any, Any)))), 4)
         asserte(len(list(triples((tarek, Any, Any)))), 2)
 
         # unbound subjects, predicates
@@ -168,7 +189,7 @@ class GraphTestCase(unittest.TestCase):
         asserte(len(list(triples((Any, Any, michel)))), 1)
 
         # all unbound
-        asserte(len(list(triples((Any, Any, Any)))), 7)
+        asserte(len(list(triples((Any, Any, Any)))), 8)
         self.removeStuff(self.graph1)
         asserte(len(list(triples((Any, Any, Any)))), 0)
 
@@ -223,109 +244,115 @@ class GraphTestCase(unittest.TestCase):
 
         self.assertEquals(False, graph.connected())
 
-    #def testSub(self):
-        #g1=Graph(store=self.store_name)
-        #g2=Graph(store=self.store_name)
+        # if we don't ignore reference nodes, the graph should be connected
+        graph.store.ignore_reference_nodes = False
 
-        #tarek = self.tarek
-        #michel = self.michel
-        #bob = self.bob
-        #likes = self.likes
-        #hates = self.hates
-        #pizza = self.pizza
-        #cheese = self.cheese
+        self.assertEquals(True, graph.connected())
+
+
+    def testSub(self):
+        g1=self.graph1
+        g2=self.graph2
+
+        tarek = self.tarek
+        michel = self.michel
+        bob = self.bob
+        likes = self.likes
+        hates = self.hates
+        pizza = self.pizza
+        cheese = self.cheese
        
-        #g1.add((tarek, likes, pizza))
-        #g1.add((bob, likes, cheese))
+        g1.add((tarek, likes, pizza))
+        g1.add((bob, likes, cheese))
 
-        #g2.add((bob, likes, cheese))
+        g2.add((bob, likes, cheese))
 
-        #g3=g1-g2
+        g3=g1-g2
 
-        #self.assertEquals(len(g3), 1)
-        #self.assertEquals((tarek, likes, pizza) in g3, True)
-        #self.assertEquals((tarek, likes, cheese) in g3, False)
+        self.assertEquals(len(g3), 1)
+        self.assertEquals((tarek, likes, pizza) in g3, True)
+        self.assertEquals((tarek, likes, cheese) in g3, False)
 
-        #self.assertEquals((bob, likes, cheese) in g3, False)
+        self.assertEquals((bob, likes, cheese) in g3, False)
 
-        #g1-=g2
+        g1-=g2
 
-        #self.assertEquals(len(g1), 1)
-        #self.assertEquals((tarek, likes, pizza) in g1, True)
-        #self.assertEquals((tarek, likes, cheese) in g1, False)
+        self.assertEquals(len(g1), 1)
+        self.assertEquals((tarek, likes, pizza) in g1, True)
+        self.assertEquals((tarek, likes, cheese) in g1, False)
 
-        #self.assertEquals((bob, likes, cheese) in g1, False)
+        self.assertEquals((bob, likes, cheese) in g1, False)
 
-    #def testGraphAdd(self):
-        #g1=Graph(store=self.store_name)
-        #g2=Graph(store=self.store_name)
+    def testGraphAdd(self):
+        g1=self.graph1
+        g2=self.graph2
 
-        #tarek = self.tarek
-        #michel = self.michel
-        #bob = self.bob
-        #likes = self.likes
-        #hates = self.hates
-        #pizza = self.pizza
-        #cheese = self.cheese
+        tarek = self.tarek
+        michel = self.michel
+        bob = self.bob
+        likes = self.likes
+        hates = self.hates
+        pizza = self.pizza
+        cheese = self.cheese
        
-        #g1.add((tarek, likes, pizza))
+        g1.add((tarek, likes, pizza))
 
-        #g2.add((bob, likes, cheese))
+        g2.add((bob, likes, cheese))
 
-        #g3=g1+g2
+        g3=g1+g2
 
-        #self.assertEquals(len(g3), 2)
-        #self.assertEquals((tarek, likes, pizza) in g3, True)
-        #self.assertEquals((tarek, likes, cheese) in g3, False)
+        self.assertEquals(len(g3), 2)
+        self.assertEquals((tarek, likes, pizza) in g3, True)
+        self.assertEquals((tarek, likes, cheese) in g3, False)
 
-        #self.assertEquals((bob, likes, cheese) in g3, True)
+        self.assertEquals((bob, likes, cheese) in g3, True)
 
-        #g1+=g2
+        g1+=g2
 
-        #self.assertEquals(len(g1), 2)
-        #self.assertEquals((tarek, likes, pizza) in g1, True)
-        #self.assertEquals((tarek, likes, cheese) in g1, False)
+        self.assertEquals(len(g1), 2)
+        self.assertEquals((tarek, likes, pizza) in g1, True)
+        self.assertEquals((tarek, likes, cheese) in g1, False)
 
-        #self.assertEquals((bob, likes, cheese) in g1, True)
+        self.assertEquals((bob, likes, cheese) in g1, True)
 
-    #def testGraphIntersection(self):
-        #g1=Graph(store=self.store_name)
-        #g2=Graph(store=self.store_name)
+    def testGraphIntersection(self):
+        g1=self.graph1
+        g2=self.graph2
 
-        #tarek = self.tarek
-        #michel = self.michel
-        #bob = self.bob
-        #likes = self.likes
-        #hates = self.hates
-        #pizza = self.pizza
-        #cheese = self.cheese
+        tarek = self.tarek
+        michel = self.michel
+        bob = self.bob
+        likes = self.likes
+        hates = self.hates
+        pizza = self.pizza
+        cheese = self.cheese
        
-        #g1.add((tarek, likes, pizza))
-        #g1.add((michel, likes, cheese))
+        g1.add((tarek, likes, pizza))
+        g1.add((michel, likes, cheese))
 
-        #g2.add((bob, likes, cheese))
-        #g2.add((michel, likes, cheese))
+        g2.add((bob, likes, cheese))
+        g2.add((michel, likes, cheese))
 
-        #g3=g1*g2
+        g3=g1*g2
 
-        #self.assertEquals(len(g3), 1)
-        #self.assertEquals((tarek, likes, pizza) in g3, False)
-        #self.assertEquals((tarek, likes, cheese) in g3, False)
+        self.assertEquals(len(g3), 1)
+        self.assertEquals((tarek, likes, pizza) in g3, False)
+        self.assertEquals((tarek, likes, cheese) in g3, False)
 
-        #self.assertEquals((bob, likes, cheese) in g3, False)
+        self.assertEquals((bob, likes, cheese) in g3, False)
 
-        #self.assertEquals((michel, likes, cheese) in g3, True)
+        self.assertEquals((michel, likes, cheese) in g3, True)
 
-        #g1*=g2
+        g1*=g2
 
-        #self.assertEquals(len(g1), 1)
+        self.assertEquals(len(g1), 1)
 
-        #self.assertEquals((tarek, likes, pizza) in g1, False)
-        #self.assertEquals((tarek, likes, cheese) in g1, False)
+        self.assertEquals((tarek, likes, pizza) in g1, False)
+        self.assertEquals((tarek, likes, cheese) in g1, False)
 
-        #self.assertEquals((bob, likes, cheese) in g1, False)
+        self.assertEquals((bob, likes, cheese) in g1, False)
 
-        #self.assertEquals((michel, likes, cheese) in g1, True)
+        self.assertEquals((michel, likes, cheese) in g1, True)
 
     def testSerialize(self):
         self.addStuff(self.graph1)

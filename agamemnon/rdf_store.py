@@ -28,8 +28,11 @@ class AgamemnonStore(Store):
         super(AgamemnonStore, self).__init__(configuration)
         self.identifier = identifier
 
+        # namespace and prefix indexes
+        self.__namespace = {}
+        self.__prefix = {}
         self.node_namespace_base = "https://github.com/globusonline/agamemnon/nodes/"
-        self.relationship_namespace_base = "https://github.com/globusonline/agamemnon/nodes/"
+        self.relationship_namespace_base = "https://github.com/globusonline/agamemnon/rels/"
 
         if configuration:
             self._process_config(configuration)
@@ -37,9 +40,6 @@ class AgamemnonStore(Store):
         if data_store:
             self.data_store = data_store
 
-        # namespace and prefix indexes
-        self.__namespace = {}
-        self.__prefix = {}
 
         self._ignored_node_types = set(['reference'])
 
@@ -98,6 +98,8 @@ class AgamemnonStore(Store):
     @relationship_namespace_base.setter
     def relationship_namespace_base(self, value):
         self._relationship_namespace_base = Namespace(value)
+        # we need this bound as the default namespace
+        self.bind("", self._relationship_namespace_base)
     
     def ignore(self, node_type):
         self._ignored_node_types.add(node_type)
@@ -126,6 +128,7 @@ class AgamemnonStore(Store):
         if isinstance(object, Literal):
             log.debug("Setting %r on %r" % (p_rel_type, s_node))
             s_node[p_rel_type] = object.toPython()
+            s_node.commit()
         else:
             o_node = self.uri_to_node(object, True)
 
@@ -140,7 +143,6 @@ class AgamemnonStore(Store):
             if isinstance(object, Literal):
                 if p_rel_type in s_node.attributes:
                     if s_node[p_rel_type] == object.toPython():
-                        log.debug("Deleting %s from %s" % (p_rel_type, s_node))
                         del s_node[p_rel_type]
                         s_node.commit()
             else:
@@ -148,44 +150,45 @@ class AgamemnonStore(Store):
                 if o_node_type in self._ignored_node_types: return
                 for rel in getattr(s_node, p_rel_type).relationships_with(o_node_id):
                     if rel.target_node.type == o_node_type:
-                        log.debug("Deleting %s" % rel)
                         rel.delete()
-                        log.debug("Deleted %s" % rel)
 
     def triples(self, (subject, predicate, object), context=None):
         log.debug("Looking for triple %s, %s, %s" % (subject, predicate, object))
         if isinstance(subject, Literal) or isinstance(predicate, Literal):
             # subject and predicate can't be literal silly rabbit
-            return (c for c in []) # TODO: best way to return empty generator
+            return 
 
         # Determine what mechanism to use to do lookup
         try:
             if predicate is not None:
                 if subject is not None:
                     if object is not None:
-                        return self._triples_by_spo(subject, predicate, object)
+                        triples = self._triples_by_spo(subject, predicate, object)
                     else:
-                        return self._triples_by_sp(subject, predicate)
+                        triples = self._triples_by_sp(subject, predicate)
                 else:
                     if object is not None:
-                        return self._triples_by_po(predicate, object)
+                        triples = self._triples_by_po(predicate, object)
                     else:
-                        return self._triples_by_p(predicate)
+                        triples = self._triples_by_p(predicate)
             else:
                 if subject is not None:
                     if object is not None:
-                        return self._triples_by_so(subject, object)
+                        triples = self._triples_by_so(subject, object)
                     else:
-                        return self._triples_by_s(subject)
+                        triples = self._triples_by_s(subject)
                 else:
                     if object is not None:
-                        return self._triples_by_o(object)
+                        triples = self._triples_by_o(object)
                     else:
-                        return self._all_triples()
+                        triples = self._all_triples()
+
+            for triple in triples:
+                yield triple, None
         except NodeNotFoundException:
             # exit generator as we found no triples
             log.debug("Failed to find any triples.")
-            return (c for c in []) # TODO: best way to return empty generator
+            return
 
     def _triples_by_spo(self, subject, predicate, object):
         log.debug("Finding triple by spo")
@@ -196,14 +199,14 @@ class AgamemnonStore(Store):
             if p_rel_type in s_node.attributes:
                 if s_node[p_rel_type] == object.toPython():
                     log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                    yield (subject, predicate, object), None
+                    yield subject, predicate, object
         else:
             o_node_type, o_node_id = self.uri_to_node_def(object) 
             if o_node_type in self._ignored_node_types: return
             for rel in getattr(s_node, p_rel_type).relationships_with(o_node_id):
                 if rel.target_node.type == o_node_type:
                     log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                    yield (subject, predicate, object), None
+                    yield subject, predicate, object
 
     def _triples_by_sp(self, subject, predicate):
         log.debug("Finding triple by sp")
@@ -213,12 +216,12 @@ class AgamemnonStore(Store):
         for rel in getattr(s_node, p_rel_type).outgoing:
             object = self.node_to_uri(rel.target_node)
             log.debug("Found %s, %s, %s" % (subject, predicate, object))
-            yield (subject, predicate, object), None
+            yield subject, predicate, object
 
         if p_rel_type in s_node.attributes:
             object = Literal(s_node[p_rel_type])
             log.debug("Found %s, %s, %s" % (subject, predicate, object))
-            yield (subject, predicate, object), None
+            yield subject, predicate, object
 
     def _triples_by_po(self, predicate, object):
         log.debug("Finding triple by po")
@@ -230,13 +233,13 @@ class AgamemnonStore(Store):
                 if p_rel_type in s_node.attributes:
                     if s_node[p_rel_type] == object.toPython():
                         log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                        yield (subject, predicate, object), None
+                        yield subject, predicate, object
         else:
             o_node = self.uri_to_node(object) 
             for rel in getattr(o_node, p_rel_type).incoming:
                 subject = self.node_to_uri(rel.source_node)
                 log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                yield (subject, predicate, object), None
+                yield subject, predicate, object
 
     def _triples_by_so(self, subject, object):
         log.debug("Finding triple by so.")
@@ -248,7 +251,7 @@ class AgamemnonStore(Store):
                 if s_node[p_rel_type] == object.toPython():
                     predicate = self.rel_type_to_uri(p_rel_type)
                     log.debug("Found %s, %s, %r" % (subject, predicate, object))
-                    yield (subject, predicate, object), None
+                    yield subject, predicate, object
         else:
             o_node = self.uri_to_node(object) 
             if o_node.type in self._ignored_node_types: return
@@ -256,7 +259,7 @@ class AgamemnonStore(Store):
                 if rel.target_node == o_node:
                     predicate = self.rel_type_to_uri(rel.type)
                     log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                    yield (subject, predicate, object), None
+                    yield subject, predicate, object
 
     def _triples_by_s(self, subject):
         log.debug("Finding triple by s")
@@ -267,14 +270,14 @@ class AgamemnonStore(Store):
             predicate = self.rel_type_to_uri(rel.type)
             object = self.node_to_uri(rel.target_node)
             log.debug("Found %s, %s, %s" % (subject, predicate, object))
-            yield (subject, predicate, object), None
+            yield subject, predicate, object
 
         for p_rel_type in s_node.attributes.keys():
             if p_rel_type.startswith("__"): continue #ignore special names
             predicate = self.rel_type_to_uri(p_rel_type)
             object = Literal(s_node[p_rel_type])
             log.debug("Found %s, %s, %r" % (subject, predicate, object))
-            yield (subject, predicate, object), None
+            yield subject, predicate, object
 
     def _triples_by_p(self, predicate):
         log.debug("Finding triple by p")
@@ -288,7 +291,7 @@ class AgamemnonStore(Store):
                 if rel.target_node.type in self._ignored_node_types: continue
                 object = self.node_to_uri(rel.target_node)
                 log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                yield (subject, predicate, object), None
+                yield subject, predicate, object
 
             if p_rel_type in s_node.attributes:
                 object = Literal(s_node[p_rel_type])
@@ -307,7 +310,7 @@ class AgamemnonStore(Store):
                     if s_node[p_rel_type] == object.toPython():
                         predicate = self.rel_type_to_uri(p_rel_type)
                         log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                        yield (subject, predicate, object), None
+                        yield subject, predicate, object
 
         else:
             o_node = self.uri_to_node(object) 
@@ -316,7 +319,7 @@ class AgamemnonStore(Store):
                 predicate = self.rel_type_to_uri(rel.type)
                 subject = self.node_to_uri(rel.source_node)
                 log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                yield (subject, predicate, object), None
+                yield subject, predicate, object
 
     def _all_triples(self):
         log.debug("Finding all triples.")
@@ -329,14 +332,14 @@ class AgamemnonStore(Store):
                 predicate = self.rel_type_to_uri(rel.type)
                 object = self.node_to_uri(rel.target_node)
                 log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                yield (subject, predicate, object), None
+                yield subject, predicate, object
 
             for p_rel_type in s_node.attributes.keys():
                 if p_rel_type.startswith("__"): continue #ignore special names
                 predicate = self.rel_type_to_uri(p_rel_type)
                 object = Literal(s_node[p_rel_type])
                 log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                yield (subject, predicate, object), None
+                yield subject, predicate, object
 
     def _all_nodes(self):
         ref_ref_node = self.data_store.get_reference_node()
@@ -368,7 +371,14 @@ class AgamemnonStore(Store):
             return node
 
     def uri_to_node_def(self, uri):
-        namespace, node_id = split_uri(uri)
+        if "#" in uri:
+            # if we have a fragment, we will split there
+            namespace, node_id = urldefrag(uri)
+            namespace += "#"
+        else:
+            # we make a best guess using split_uri logic
+            namespace, node_id = split_uri(uri)
+
         node_type = self.prefix(namespace)
         if node_type is None:
             node_type = str(uuid.uuid1()).replace("-","_")
@@ -376,10 +386,29 @@ class AgamemnonStore(Store):
         return node_type, node_id
 
     def rel_type_to_uri(self, rel_type):
-        return URIRef(rel_type)
+        if ":" in rel_type:
+            prefix, suffix = rel_type.split(":",1)
+            namespace = self.namespace(prefix)
+            if namespace:
+                uri = namespace[suffix]
+            else:
+                uri = URIRef(rel_type)
+        else:
+            uri = self.relationship_namespace_base[rel_type]
+
+        return uri
 
     def uri_to_rel_type(self, uri):
-        return URIRef(uri)
+        namespace, rel_type = split_uri(uri)
+        prefix = self.prefix(namespace)
+        if prefix is None:
+            prefix = str(uuid.uuid1()).replace("-","_")
+            self.bind(prefix, rel_type)
+        
+        if prefix != "":
+            rel_type = ":".join((prefix,rel_type))
+        
+        return rel_type.encode('utf-8')
 
     def bind(self, prefix, namespace):
         self.__prefix[Namespace(namespace)] = unicode(prefix)
@@ -400,5 +429,5 @@ class AgamemnonStore(Store):
         return (c for c in []) # TODO: best way to return empty generator
 
     def __len__(self, context=None):
-        return len(self._all_triples)
+        return len(list(self._all_triples()))
 
