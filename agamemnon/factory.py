@@ -62,16 +62,16 @@ class DataStore(object):
     def get_all_outgoing_relationships(self, source_node, count=100):
         source_key = RELATIONSHIP_KEY_PATTERN % (source_node.type, source_node.key)
         try:
-            super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, count)
+            super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, column_count=count)
         except NotFoundException:
             super_columns = {}
         return [self.get_outgoing_relationship(super_column[1]['rel_type'], source_node, super_column) for super_column in
-                super_columns.items()]
+                super_columns.items() if len(super_column[1]) > 0]
 
     def get_all_incoming_relationships(self, target_node, count=100):
         source_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
         try:
-            super_columns = self.get(INBOUND_RELATIONSHIP_CF, source_key, count)
+            super_columns = self.get(INBOUND_RELATIONSHIP_CF, source_key, column_count=count)
         except NotFoundException:
             super_columns = {}
         return [self.get_incoming_relationship(super_column[1]['rel_type'], target_node, super_column) for super_column in
@@ -217,7 +217,6 @@ class DataStore(object):
         > node_a =
 
         """
-        print "Finding: %s, %r, %r" % (node_a, node_b_key, rel_type)
         index = self.delegate.get_cf(RELATIONSHIP_INDEX)
         node_a_row_key = ENDPOINT_NAME_TEMPLATE % (node_a.type, node_a.key)
         rel_list = []
@@ -237,13 +236,11 @@ class DataStore(object):
 
                 rel_list.append(relationship)
         except NotFoundException:
-            print "Not found: %s, %r, %r" % (node_a, node_b_key, rel_type)
             pass
 
-        print rel_list
         return rel_list
 
-    def create_node(self, type, key, args={}, reference=False):
+    def create_node(self, type, key, args=dict(), reference=False):
         node = prim.Node(self, type, key, args)
         if args is None:
             args = {}
@@ -260,24 +257,11 @@ class DataStore(object):
         return node
 
     def delete_node(self, node):
-        node_key = ENDPOINT_NAME_TEMPLATE % (node.type, node.key)
-        try:
-            outbound_results = self.get(OUTBOUND_RELATIONSHIP_CF, node_key)
-        except NotFoundException:
-            outbound_results = {}
-        try:
-            inbound_results = self.get(INBOUND_RELATIONSHIP_CF, node_key)
-        except NotFoundException:
-            inbound_results = {}
-
+        relationships = node.relationships
         with self.batch():
-            for rel in outbound_results.values():
-                self.delete_relationship(rel['rel_type'], rel['rel_key'], rel['source__type'], rel['source__key'],
-                                         rel['target__type'], rel['target__key'])
-            for rel in inbound_results.values():
-                self.delete_relationship(rel['rel_type'], rel['rel_key'], rel['source__type'], rel['source__key'],
-                                         rel['target__type'], rel['target__key'])
-            self.delete(node.type, node.key)
+           for rel in relationships:
+                rel.delete()
+                self.delete(node.type, node.key)
 
     def save_node(self, node):
         """
@@ -399,6 +383,9 @@ class DataStore(object):
     def __getattr__(self, item):
         if not item in self.__dict__:
             return getattr(self.delegate, item)
+
+
+
 
 
 def load_from_settings(settings, prefix='agamemnon.'):
