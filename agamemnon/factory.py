@@ -239,7 +239,7 @@ class DataStore(object):
             pass
         return rel_list
 
-    def create_node(self, type, key, args=dict(), reference=False):
+    def create_node(self, type, key, args=None, reference=False):
         if args is None:
             args = {}
         node = prim.Node(self, type, key, args)
