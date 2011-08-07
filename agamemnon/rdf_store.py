@@ -55,12 +55,12 @@ class AgamemnonStore(Store):
             hostlist = json.loads(self.configuration['agamemnon.host_list'])
             system_manager = pycassa.SystemManager(hostlist[0])
             try:
-                log.info("Attempting to drop keyspace")
+                log.info("Attempting to drop keyspace: %s" % keyspace)
                 system_manager.drop_keyspace(keyspace)
             except pycassa.cassandra.ttypes.InvalidRequestException:
                 log.warn("Keyspace didn't exist")
             finally:
-                log.info("Creating keyspace")
+                log.info("Creating keyspace: %s" % keyspace)
                 system_manager.create_keyspace(keyspace, replication_factor=repl_factor)
 
         self.data_store = load_from_settings(self.configuration)
@@ -418,6 +418,7 @@ class AgamemnonStore(Store):
         return rel_type.encode('utf-8')
 
     def bind(self, prefix, namespace):
+        log.debug("Binding prefix '%s' to namespace %s" % (prefix, namespace))
         if not prefix:
             prefix = RDF_DEFAULT_PREFIX
         prefix = prefix.encode("utf-8")
@@ -427,6 +428,7 @@ class AgamemnonStore(Store):
 
 
     def namespace(self, prefix):
+        log.debug("Finding namespace for %s" % prefix)
         if not prefix:
             prefix = RDF_DEFAULT_PREFIX
         try:
@@ -443,6 +445,7 @@ class AgamemnonStore(Store):
             return None
 
     def prefix(self, namespace):
+        log.debug("Finding prefix for %s" % namespace)
         try:
             namespace = namespace.encode("utf-8")
             entry = self.data_store.get(

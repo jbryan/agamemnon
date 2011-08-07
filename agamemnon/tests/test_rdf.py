@@ -10,7 +10,6 @@ from rdflib.graph import Graph
 import rdflib.plugin
 
 from agamemnon.rdf_store import AgamemnonStore
-from nose.plugins.attrib import attr
 
 import uuid
 
@@ -20,14 +19,14 @@ log = logging.getLogger(__name__)
 class GraphTestCase(unittest.TestCase):
     store_name = 'Agamemnon'
     settings1 = {
-        'agamemnon.keyspace' : 'testagamemnon1',
-        #'agamemnon.keyspace' : 'memory',
+        #'agamemnon.keyspace' : 'testagamemnon1',
+        'agamemnon.keyspace' : 'memory',
         'agamemnon.host_list' : '["localhost:9160"]',
         'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
     }
     settings2 = {
-        'agamemnon.keyspace' : 'testagamemnon2',
-        #'agamemnon.keyspace' : 'memory',
+        #'agamemnon.keyspace' : 'testagamemnon2',
+        'agamemnon.keyspace' : 'memory',
         'agamemnon.host_list' : '["localhost:9160"]',
         'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
     }
@@ -365,16 +364,20 @@ class GraphTestCase(unittest.TestCase):
         self.assertEquals((michel, likes, cheese) in g1, True)
 
     def testSerialize(self):
+        node = self.graph1.store.ident_to_node(self.pizza, True)
+        log.info("Pizza Attr: %s" %node.attributes)
+
+
         parse_serial_pairs = [
             ('xml','xml'),
             # we will add more once we support context aware graphs
         ]
         for parse, serial in parse_serial_pairs:
             self.addStuff(self.graph1)
-            v = self.graph1.serialize(format=serial)
-            log.info(v)
 
+            v = self.graph1.serialize(format=serial)
             self.graph2.parse(data=v,format=parse)
+
 
             for triple in self.graph1:
                 self.assertTrue(triple in self.graph2)
@@ -386,29 +389,31 @@ class GraphTestCase(unittest.TestCase):
             self.graph2.remove((None,None,None))
 
 
-    #def testParse(self):
-        ## borrowed from http://en.wikipedia.org/wiki/Resource_Description_Framework
-        #rdf = """
-            #<rdf:RDF
-            #xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-            #xmlns:foaf="http://xmlns.com/foaf/0.1/" 
-            #xmlns:dc="http://purl.org/dc/elements/1.1/">
-                    #<rdf:Description rdf:about="http://en.wikipedia.org/wiki/Tony_Benn">
-                            #<dc:title>Tony Benn</dc:title>
-                            #<dc:publisher>Wikipedia</dc:publisher>
-                            #<foaf:primaryTopic>
-                                #<foaf:Person>
-                                    #<foaf:name>Tony Benn</foaf:name>  
-                                #</foaf:Person>
-                            #</foaf:primaryTopic>
-                    #</rdf:Description>
-            #</rdf:RDF>
-        #"""
+    def testParse(self):
+        # borrowed from http://en.wikipedia.org/wiki/Resource_Description_Framework
+        rdf = """
+            <rdf:RDF
+            xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+            xmlns:foaf="http://xmlns.com/foaf/0.1/" 
+            xmlns:dc="http://purl.org/dc/elements/1.1/">
+                    <rdf:Description rdf:about="http://en.wikipedia.org/wiki/Tony_Benn">
+                            <dc:title>Tony Benn</dc:title>
+                            <dc:publisher>Wikipedia</dc:publisher>
+                            <foaf:primaryTopic>
+                                <foaf:Person>
+                                    <foaf:name>Tony Benn</foaf:name>  
+                                </foaf:Person>
+                            </foaf:primaryTopic>
+                    </rdf:Description>
+            </rdf:RDF>
+        """
 
-        #self.graph1.parse(data=rdf)
-        #log.info(self.graph1.serialize())
+        self.graph1.parse(data=rdf)
+        log.info(self.graph1.serialize())
         
 
 
-
-
+if __name__=="__main__":
+    #import pdb
+    #pdb.set_trace()
+    unittest.main()
