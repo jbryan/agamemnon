@@ -10,7 +10,7 @@ requires = ['pycassa', 'thrift05', 'setuptools','ordereddict','rdflib']
 tests_requires = requires + ['nose', 'mock']
 
 setup(name='agamemnon',
-      version='0.2.1.4',
+      version='0.2.2.0',
       description='A graph database built on top of cassandra',
       long_description=README + "\n\n" + CHANGES,
       classifiers=[
@@ -19,6 +19,7 @@ setup(name='agamemnon',
       author='Tom Howe',
       author_email='trhowe@ci.uchicago.edu',
       url='https://github.com/globusonline/agamemnon',
+      scripts=['bin/generate_indices'],
       license='LICENSE.txt',
       keywords='cassandra',
       packages=find_packages(),

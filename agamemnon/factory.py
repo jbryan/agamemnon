@@ -239,7 +239,7 @@ class DataStore(object):
             pass
         return rel_list
 
-    def create_node(self, type, key, args=None, reference=False):
+    def create_node(self, type, key, args=dict(), reference=False):
         if args is None:
             args = {}
         node = prim.Node(self, type, key, args)
@@ -256,24 +256,11 @@ class DataStore(object):
         return node
 
     def delete_node(self, node):
-        node_key = ENDPOINT_NAME_TEMPLATE % (node.type, node.key)
-        try:
-            outbound_results = self.get(OUTBOUND_RELATIONSHIP_CF, node_key)
-        except NotFoundException:
-            outbound_results = {}
-        try:
-            inbound_results = self.get(INBOUND_RELATIONSHIP_CF, node_key)
-        except NotFoundException:
-            inbound_results = {}
-
+        relationships = node.relationships
         with self.batch():
-            for rel in outbound_results.values():
-                self.delete_relationship(rel['rel_type'], rel['rel_key'], rel['source__type'], rel['source__key'],
-                                         rel['target__type'], rel['target__key'])
-            for rel in inbound_results.values():
-                self.delete_relationship(rel['rel_type'], rel['rel_key'], rel['source__type'], rel['source__key'],
-                                         rel['target__type'], rel['target__key'])
-            self.delete(node.type, node.key)
+           for rel in relationships:
+                rel.delete()
+                self.delete(node.type, node.key)
 
     def save_node(self, node):
         """
