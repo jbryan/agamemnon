@@ -237,13 +237,12 @@ class DataStore(object):
                 rel_list.append(relationship)
         except NotFoundException:
             pass
-
         return rel_list
 
-    def create_node(self, type, key, args=dict(), reference=False):
-        node = prim.Node(self, type, key, args)
+    def create_node(self, type, key, args=None, reference=False):
         if args is None:
             args = {}
+        node = prim.Node(self, type, key, args)
 
         #since node won't get created without args, we will include __id by default
         args["__id"] = key
@@ -383,9 +382,6 @@ class DataStore(object):
     def __getattr__(self, item):
         if not item in self.__dict__:
             return getattr(self.delegate, item)
-
-
-
 
 
 def load_from_settings(settings, prefix='agamemnon.'):
