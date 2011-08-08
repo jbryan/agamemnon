@@ -295,9 +295,10 @@ class DataStore(object):
             serialized = self.serialize_columns(target)
             self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, serialized, key)
             self.insert(INBOUND_RELATIONSHIP_CF, target_key, serialized, key)
-            self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
+            if len(columns_to_remove):
+                self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
                         columns=['source__%s' % column for column in columns_to_remove])
-            self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
+                self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
                         columns=['source__%s' % column for column in columns_to_remove])
         inbound_columns = {'target__type': node.type.encode('utf-8'), 'target__key': node.key.encode('utf-8')}
         for attribute_key in node.attributes.keys():
@@ -310,9 +311,10 @@ class DataStore(object):
             serialized = self.serialize_columns(source)
             self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, serialized, key)
             self.insert(INBOUND_RELATIONSHIP_CF, target_key, serialized, key)
-            self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
+            if len(columns_to_remove):
+                self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
                         columns=['target__%s' % column for column in columns_to_remove])
-            self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
+                self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
                         columns=['target__%s' % column for column in columns_to_remove])
 
 
