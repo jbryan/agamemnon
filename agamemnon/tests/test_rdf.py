@@ -16,17 +16,15 @@ import uuid
 import logging
 log = logging.getLogger(__name__)
 
-class GraphTestCase(unittest.TestCase):
+class GraphCassandraTestCase(unittest.TestCase):
     store_name = 'Agamemnon'
     settings1 = {
-        #'agamemnon.keyspace' : 'testagamemnon1',
-        'agamemnon.keyspace' : 'memory',
+        'agamemnon.keyspace' : 'testagamemnon1',
         'agamemnon.host_list' : '["localhost:9160"]',
         'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
     }
     settings2 = {
-        #'agamemnon.keyspace' : 'testagamemnon2',
-        'agamemnon.keyspace' : 'memory',
+        'agamemnon.keyspace' : 'testagamemnon2',
         'agamemnon.host_list' : '["localhost:9160"]',
         'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
     }
@@ -176,16 +174,19 @@ class GraphTestCase(unittest.TestCase):
         asserte(len(list(triples((tarek, likes, Any)))), 2)
         asserte(len(list(triples((bob, hates, Any)))), 2)
         asserte(len(list(triples((bob, likes, Any)))), 1)
+        asserte(len(list(triples((bob, named, Any)))), 1)
 
         # unbound predicates
         asserte(len(list(triples((michel, Any, cheese)))), 1)
         asserte(len(list(triples((tarek, Any, cheese)))), 1)
         asserte(len(list(triples((bob, Any, pizza)))), 1)
         asserte(len(list(triples((bob, Any, michel)))), 1)
+        asserte(len(list(triples((bob, Any, Literal("Bob"))))), 1)
 
         # unbound subject, objects
         asserte(len(list(triples((Any, hates, Any)))), 2)
         asserte(len(list(triples((Any, likes, Any)))), 5)
+        asserte(len(list(triples((Any, named, Any)))), 1)
 
         # unbound predicates, objects
         asserte(len(list(triples((michel, Any, Any)))), 2)
@@ -253,6 +254,8 @@ class GraphTestCase(unittest.TestCase):
 
         self.assertEquals(False, graph.connected())
 
+        # sanity check that we are ignoring reference nodes
+        self.assertTrue(graph.store.ignore_reference_nodes)
         # if we don't ignore reference nodes, the graph should be connected
         graph.store.ignore_reference_nodes = False
 
@@ -411,9 +414,14 @@ class GraphTestCase(unittest.TestCase):
         self.graph1.parse(data=rdf)
         log.info(self.graph1.serialize())
         
-
-
-if __name__=="__main__":
-    #import pdb
-    #pdb.set_trace()
-    unittest.main()
+class GraphInMemoryTestCase(GraphCassandraTestCase):
+    settings1 = {
+        'agamemnon.keyspace' : 'memory',
+        'agamemnon.host_list' : '["localhost:9160"]',
+        'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
+    }
+    settings2 = {
+        'agamemnon.keyspace' : 'memory',
+        'agamemnon.host_list' : '["localhost:9160"]',
+        'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
+    }

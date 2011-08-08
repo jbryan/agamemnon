@@ -140,6 +140,10 @@ class AgamemnonStore(Store):
                     if s_node[p_rel_type] == object.toPython():
                         del s_node[p_rel_type]
                         s_node.commit()
+
+                        s_node = self.data_store.get_node(s_node.type, s_node.key)
+                        log.debug("ATTS: %s" %s_node.attributes)
+
             else:
                 o_node_type, o_node_id = self.ident_to_node_def(object) 
                 if o_node_type in self._ignored_node_types: return
@@ -291,7 +295,7 @@ class AgamemnonStore(Store):
             if p_rel_type in s_node.attributes:
                 object = Literal(s_node[p_rel_type])
                 log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                yield (subject, predicate, object ), None
+                yield subject, predicate, object 
 
     def _triples_by_o(self, object):
         log.debug("Finding triple by o")
