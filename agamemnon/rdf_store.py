@@ -439,7 +439,7 @@ class AgamemnonStore(Store):
             prefix = prefix.encode("utf-8")
             entry = self.data_store.get(
                 RDF_NAMESPACE_CF, 'namespace', 
-                #column_start=prefix, column_finish=prefix, column_count = 1
+                column_start=prefix, column_finish=prefix, column_count = 1
             )
             if prefix in entry:
                 return Namespace(entry[prefix])
@@ -454,7 +454,7 @@ class AgamemnonStore(Store):
             namespace = namespace.encode("utf-8")
             entry = self.data_store.get(
                 RDF_NAMESPACE_CF, 'prefix', 
-                #column_start=namespace, column_finish=namespace column_count = 1
+                column_start=namespace, column_finish=namespace, column_count = 1
             )
             prefix = entry.get(namespace,None)
             if prefix == RDF_DEFAULT_PREFIX:
