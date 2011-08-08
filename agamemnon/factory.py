@@ -237,13 +237,12 @@ class DataStore(object):
                 rel_list.append(relationship)
         except NotFoundException:
             pass
-
         return rel_list
 
-    def create_node(self, type, key, args=dict(), reference=False):
-        node = prim.Node(self, type, key, args)
+    def create_node(self, type, key, args=None, reference=False):
         if args is None:
             args = {}
+        node = prim.Node(self, type, key, args)
 
         #since node won't get created without args, we will include __id by default
         args["__id"] = key
@@ -267,6 +266,13 @@ class DataStore(object):
         """
         This needs to update the entry in the type table as well as all of the relationships
         """
+        self.insert(node.type, node.key, self.serialize_columns(node.attributes))
+        columns_to_remove = []
+        for key in node.old_values:
+            if not key in node.new_values:
+                columns_to_remove.append(key)
+        if len(columns_to_remove) > 0:
+            self.remove(self.get_cf(node.type), node.key, columns=columns_to_remove)
         source_key = ENDPOINT_NAME_TEMPLATE % (node.type, node.key)
         target_key = ENDPOINT_NAME_TEMPLATE % (node.type, node.key)
 
@@ -289,6 +295,10 @@ class DataStore(object):
             serialized = self.serialize_columns(target)
             self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, serialized, key)
             self.insert(INBOUND_RELATIONSHIP_CF, target_key, serialized, key)
+            self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
+                        columns=['source__%s' % column for column in columns_to_remove])
+            self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
+                        columns=['source__%s' % column for column in columns_to_remove])
         inbound_columns = {'target__type': node.type.encode('utf-8'), 'target__key': node.key.encode('utf-8')}
         for attribute_key in node.attributes.keys():
             inbound_columns['target__%s' % attribute_key] = node_attributes[attribute_key]
@@ -300,7 +310,12 @@ class DataStore(object):
             serialized = self.serialize_columns(source)
             self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, serialized, key)
             self.insert(INBOUND_RELATIONSHIP_CF, target_key, serialized, key)
-        self.insert(node.type, node.key, self.serialize_columns(node.attributes))
+            self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
+                        columns=['target__%s' % column for column in columns_to_remove])
+            self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
+                        columns=['target__%s' % column for column in columns_to_remove])
+
+
 
     def get_node(self, type, key):
         try:
@@ -383,9 +398,6 @@ class DataStore(object):
     def __getattr__(self, item):
         if not item in self.__dict__:
             return getattr(self.delegate, item)
-
-
-
 
 
 def load_from_settings(settings, prefix='agamemnon.'):

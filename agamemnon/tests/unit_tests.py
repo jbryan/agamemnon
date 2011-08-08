@@ -68,14 +68,11 @@ class AgamemnonTests(TestCase):
         self.failUnlessEqual('new sample attr', node['new_attribute'])
         self.failIfEqual(attributes, node.attributes)
         with updating_node(node):
-            del(node['new sample attr'])
+            del(node['new_attribute'])
         node = self.ds.get_node(node.type, node.key)
-        try:
-            attr = node['new sample attr']
-            print "We should not have found 'new sample attr' = %s" % attr
+        if 'new_attribute' in node:
+            print "We should not have found 'new_attribute' = %s" % node['new_attribute']
             self.fail()
-        except KeyError:
-            pass
 
 
     def create_random_relationship(self, node, target_type, node_list):

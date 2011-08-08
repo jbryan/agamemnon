@@ -241,6 +241,7 @@ class Node(object):
         self._type = type
         self.old_values = args
         self.new_values = {}
+        self.new_values.update(self.old_values)
         self.relationship_factories = {}
         self.dirty = False
         self._delete = False
@@ -289,11 +290,12 @@ class Node(object):
             self.relationship_factories[item] = relationship_factory
             return relationship_factory
 
+    def __contains__(self, item):
+        return item in self.attributes
+
     def __getitem__(self, item):
         if item in self.new_values:
             return self.new_values[item]
-        else:
-            return self.old_values[item]
 
     def __setitem__(self, key, value):
         self.new_values[key] = value
@@ -302,27 +304,24 @@ class Node(object):
     def __delitem__(self, key):
         if key in self.new_values.keys():
             del(self.new_values[key])
-        if key in self.old_values.keys():
-            del(self.old_values[key])
-        self.dirty = True
+            self.dirty = True
 
     @property
     def attributes(self):
-        attr = {}
-        if self.old_values is not None:
-            attr.update(self.old_values)
-        if self.new_values is not None:
-            attr.update(self.new_values)
-        return attr
+        return self.new_values
 
     def delete(self):
         self._data_store.delete_node(self)
         self.node = None
 
     def commit(self):
-        for key in self.new_values:
-            self.old_values[key] = self.new_values[key]
         self._data_store.save_node(self)
+        self.old_values = {}
+        self.old_values.update(self.new_values)
+
+    def clear(self):
+        self.new_values = {}
+        self.new_values.update(self.old_values)
 
     def __str__(self):
         return 'Node: %s => %s' % (self.type, self.key)

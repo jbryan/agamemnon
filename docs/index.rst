@@ -14,6 +14,8 @@ Contents:
    arch
    usage
 
+.. include:: ../README.rst
+
 Indices and tables
 ==================
 

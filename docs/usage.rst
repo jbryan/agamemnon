@@ -35,12 +35,12 @@ confirm that the node and it's attributes were created correctly.
 Nodes can have different types as well.  Here we create a node of type simpson, with name Homer.  This node has
 different attributes than the previous nodes.
 
->>> homer = graph_db.create_node('simpson', 'Homer', {'sound':'Doh', 'job':'Safety Technician'})
+>>> homer = graph_db.create_node('simpson', 'Homer', {'sound':'Doh', 'job':'Safety Inspector'})
 >>> homer = graph_db.get_node('simpson', 'Homer')
 >>> homer['sound']
 'Doh'
 >>> homer['job']
-'Safety Technician'
+'Safety Inspector'
 
 Nodes by themselves are not very useful.  Let's create a relationship between spiderpig and Harry Plopper.
 
