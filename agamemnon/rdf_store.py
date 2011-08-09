@@ -1,11 +1,12 @@
 
 from rdflib.store import Store, NO_STORE, VALID_STORE
 from rdflib.plugin import register
-from rdflib.namespace import Namespace, split_uri, urldefrag
 from rdflib.term import URIRef, Literal, BNode
+from rdflib.namespace import Namespace, split_uri
 from agamemnon.factory import load_from_settings
 from agamemnon.exceptions import NodeNotFoundException
 from pycassa.cassandra.ttypes import NotFoundException
+from urlparse import urlsplit, urlunsplit, urldefrag
 import pycassa
 import json
 import uuid
@@ -374,13 +375,7 @@ class AgamemnonStore(Store):
 
     def ident_to_node_def(self, identifier):
         if isinstance(identifier,URIRef): 
-            if "#" in identifier:
-                # if we have a fragment, we will split there
-                namespace, node_id = urldefrag(identifier)
-                namespace += "#"
-            else:
-                # we make a best guess using split_uri logic
-                namespace, node_id = split_uri(identifier)
+            namespace, node_id = self._split_uri(identifier)
 
             node_type = self.prefix(namespace)
             if node_type is None:
@@ -410,7 +405,7 @@ class AgamemnonStore(Store):
         return identifier
 
     def ident_to_rel_type(self, identifier):
-        namespace, rel_type = split_uri(identifier)
+        namespace, rel_type = self._split_uri(identifier)
         prefix = self.prefix(namespace)
         if prefix is None:
             prefix = str(uuid.uuid1()).replace("-","_")
@@ -420,6 +415,36 @@ class AgamemnonStore(Store):
             rel_type = ":".join((prefix,rel_type))
         
         return rel_type.encode('utf-8')
+
+    def _split_uri(self, identifier):
+        if isinstance(identifier,URIRef): 
+            scheme, netloc, path, query, fragment = urlsplit(identifier)
+            if query:
+                namespace, resource_id = split_uri(identifier)
+            if fragment:
+                # if we have a fragment, we will split there
+                namespace, resource_id = urldefrag(identifier)
+                namespace += "#"
+            elif "/" in path and len(path)>1:
+                splits = path.split("/")
+                if path.endswith("/"):
+                    resource_id = "/".join(splits[-2:])
+                    path = "/".join(splits[:-2]) + "/"
+                    namespace = urlunsplit((scheme, netloc, path, "", ""))
+                else:
+                    resource_id = "/".join(splits[-1:])
+                    path = "/".join(splits[:-1]) + "/"
+                    namespace = urlunsplit((scheme, netloc, path, "", ""))
+            elif path:
+                resource_id = path
+                namespace = urlunsplit((scheme, netloc, "", "", ""))
+            else:
+                namespace, resource_id = split_uri(identifier)
+
+            log.debug("Split %s to %s, %s" % (identifier, namespace, resource_id))
+            return namespace, resource_id
+        else:
+            raise ValueError("Unknown identifier type %r" % identifier)
 
     def bind(self, prefix, namespace):
         log.debug("Binding prefix '%s' to namespace %s" % (prefix, namespace))
@@ -465,7 +490,7 @@ class AgamemnonStore(Store):
 
     def namespaces(self):
         try:
-            entry = self.data_store.get(RDF_NAMESPACE_CF, 'namespace')
+            entry = self.data_store.get(RDF_NAMESPACE_CF, 'namespace', column_count=1000)
             for prefix, namespace in entry.items():
                 if prefix == RDF_DEFAULT_PREFIX:
                     prefix = ""

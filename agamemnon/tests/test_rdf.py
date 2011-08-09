@@ -16,17 +16,17 @@ import uuid
 import logging
 log = logging.getLogger(__name__)
 
-class GraphCassandraTestCase(unittest.TestCase):
+class GraphMemoryTestCase(unittest.TestCase):
     store_name = 'Agamemnon'
     settings1 = {
-        'agamemnon.keyspace' : 'testagamemnon1',
+        'agamemnon.keyspace' : 'memory',
         'agamemnon.host_list' : '["localhost:9160"]',
-        'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
+        'agamemnon.rdf_namespace_base' : 'http://www.example.org/rdf/',
     }
     settings2 = {
-        'agamemnon.keyspace' : 'testagamemnon2',
+        'agamemnon.keyspace' : 'memory',
         'agamemnon.host_list' : '["localhost:9160"]',
-        'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
+        'agamemnon.rdf_namespace_base' : 'http://www.example.org/rdf/',
     }
 
     def setUp(self):
@@ -36,9 +36,9 @@ class GraphCassandraTestCase(unittest.TestCase):
         self.graph1.open(self.settings1, True)
         self.graph2.open(self.settings2, True)
 
-        self.oNS = Namespace("http://www.example.org/things#")
-        self.sNS = Namespace("http://www.example.org/people#")
-        self.pNS = Namespace("http://www.example.org/relations/")
+        self.oNS = Namespace("http://www.example.org/rdf/things#")
+        self.sNS = Namespace("http://www.example.org/rdf/people#")
+        self.pNS = Namespace("http://www.example.org/rdf/relations/")
 
         self.graph1.bind('people',self.sNS)
         self.graph1.bind('relations',self.pNS)
@@ -77,13 +77,13 @@ class GraphCassandraTestCase(unittest.TestCase):
 
     def testBind(self):
         store = self.graph1.store
-        self.assertEqual(store.namespace(""), Namespace("http://www.example.org/"))
+        self.assertEqual(store.namespace(""), Namespace("http://www.example.org/rdf/"))
         self.assertEqual(store.namespace('people'),self.sNS)
         self.assertEqual(store.namespace('relations'),self.pNS)
         self.assertEqual(store.namespace('things'),self.oNS)
         self.assertEqual(store.namespace('blech'),None)
 
-        self.assertEqual("", store.prefix(Namespace("http://www.example.org/")))
+        self.assertEqual("", store.prefix(Namespace("http://www.example.org/rdf/")))
         self.assertEqual('people',store.prefix(self.sNS))
         self.assertEqual('relations',store.prefix(self.pNS))
         self.assertEqual('things',store.prefix(self.oNS))
@@ -93,7 +93,7 @@ class GraphCassandraTestCase(unittest.TestCase):
 
     def testRelationshipToUri(self):
         uri = self.graph1.store.rel_type_to_ident('likes')
-        self.assertEqual(uri, URIRef("http://www.example.org/likes"))
+        self.assertEqual(uri, URIRef("http://www.example.org/rdf/likes"))
 
         uri = self.graph1.store.rel_type_to_ident('emotions:likes')
         self.assertEqual(uri, URIRef("emotions:likes"))
@@ -105,7 +105,7 @@ class GraphCassandraTestCase(unittest.TestCase):
     def testNodeToUri(self):
         node = self.graph1.store._ds.create_node('blah', 'bleh')
         uri = self.graph1.store.node_to_ident(node)
-        self.assertEqual(uri, URIRef("http://www.example.org/blah#bleh"))
+        self.assertEqual(uri, URIRef("http://www.example.org/rdf/blah#bleh"))
 
         self.graph1.bind("bibble", "http://www.bibble.com/rdf/bibble#")
         node = self.graph1.store._ds.create_node('bibble', 'babble')
@@ -113,7 +113,7 @@ class GraphCassandraTestCase(unittest.TestCase):
         self.assertEqual(uri, URIRef("http://www.bibble.com/rdf/bibble#babble"))
 
     def testUriToRelationship(self):
-        rel_type = self.graph1.store.ident_to_rel_type(URIRef("http://www.example.org/likes"))
+        rel_type = self.graph1.store.ident_to_rel_type(URIRef("http://www.example.org/rdf/likes"))
         self.assertEqual(rel_type, 'likes')
 
         rel_type = self.graph1.store.ident_to_rel_type(URIRef('emotions:likes'))
@@ -128,10 +128,16 @@ class GraphCassandraTestCase(unittest.TestCase):
 
     def testUriToNode(self):
         #test unbound uri
-        uri = URIRef("http://www.example.org/blah#bleh")
+        uri = URIRef("http://www.example.org/rdf/blah#bleh")
         node = self.graph1.store.ident_to_node(uri, True)
         uuid.UUID(node.type.replace("_","-"))
         self.assertEqual(node.key, "bleh")
+
+        #test unbound uri with trailing /
+        uri = URIRef("http://www.example.org/blah/bleh/")
+        node = self.graph1.store.ident_to_node(uri, True)
+        uuid.UUID(node.type.replace("_","-"))
+        self.assertEqual(node.key, "bleh/")
 
         # teset bound uri
         self.graph1.bind("bibble", "http://www.bibble.com/rdf/bibble#")
@@ -392,7 +398,8 @@ class GraphCassandraTestCase(unittest.TestCase):
             self.graph2.remove((None,None,None))
 
 
-    def testParse(self):
+    def testQuery(self):
+        # parse from string
         # borrowed from http://en.wikipedia.org/wiki/Resource_Description_Framework
         rdf = """
             <rdf:RDF
@@ -412,16 +419,61 @@ class GraphCassandraTestCase(unittest.TestCase):
         """
 
         self.graph1.parse(data=rdf)
-        log.info(self.graph1.serialize())
-        
-class GraphInMemoryTestCase(GraphCassandraTestCase):
+        rdflib.plugin.register('sparql', rdflib.query.Processor,
+                        'rdfextras.sparql.processor', 'Processor')
+        rdflib.plugin.register('sparql', rdflib.query.Result,
+                        'rdfextras.sparql.query', 'SPARQLQueryResult')
+        rows = self.graph1.query(
+            """
+            SELECT ?a WHERE 
+            { ?a foaf:primaryTopic ?b . ?b foaf:name "Tony Benn" }
+            """,
+            initNs=dict(self.graph1.namespaces())
+        )
+
+        self.assertEqual(len(rows), 1)
+
+    def testParse(self):
+        # examples from w3c
+
+        # TODO: this fails because of query string in url
+        #self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/amp-in-url/test001.rdf")
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/datatypes/test001.rdf")
+        # TODO: this fails due to type parsing, probably an rdflib problem
+        #self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/datatypes/test002.rdf")
+
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/rdf-element-not-mandatory/test001.rdf")
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-reification-required/test001.rdf")
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-uri-substructure/test001.rdf")
+
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-xmllang/test001.rdf")
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-xmllang/test002.rdf")
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-xmllang/test003.rdf")
+
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-xmllang/test004.rdf")
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-xmllang/test005.rdf")
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-xmllang/test006.rdf")
+
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/unrecognised-xml-attributes/test001.rdf")
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/unrecognised-xml-attributes/test002.rdf")
+        self.graph1.parse("http://www.w3.org/2000/10/rdf-tests/rdfcore/xml-canon/test001.rdf")
+
+        #additional examples for the fun of it
+        self.graph1.parse("http://bigasterisk.com/foaf.rdf")
+        self.graph1.parse("http://www.w3.org/People/Berners-Lee/card.rdf")
+        self.graph1.parse("http://danbri.livejournal.com/data/foaf") 
+
+        self.graph1.serialize("serialized.rdf")
+
+
+class GraphCassandraTestCase(GraphMemoryTestCase):
     settings1 = {
-        'agamemnon.keyspace' : 'memory',
+        'agamemnon.keyspace' : 'testagamemnon1',
         'agamemnon.host_list' : '["localhost:9160"]',
-        'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
+        'agamemnon.rdf_namespace_base' : 'http://www.example.org/rdf/',
     }
     settings2 = {
-        'agamemnon.keyspace' : 'memory',
+        'agamemnon.keyspace' : 'testagamemnon2',
         'agamemnon.host_list' : '["localhost:9160"]',
-        'agamemnon.rdf_namespace_base' : 'http://www.example.org/',
+        'agamemnon.rdf_namespace_base' : 'http://www.example.org/rdf/',
     }
