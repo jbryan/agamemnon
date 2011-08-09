@@ -89,7 +89,6 @@ class ColumnFamily(object):
                         results[c] = data_columns[c]
                 else:
                     for c in data_columns.keys():
-                        count += 1
                         if count > column_count:
                             break
                         if column_start is not None and column_finish is not None:
@@ -99,8 +98,10 @@ class ColumnFamily(object):
                                 or cmp(c, column_start) == 0):
 
                                 results[c] = data_columns[c]
+                                count += 1
                         else:
                             results[c] = data_columns[c]
+                            count += 1
             if not len(results):
                 raise NotFoundException
             for key, value in results.items():
