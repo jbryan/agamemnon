@@ -362,6 +362,7 @@ class AgamemnonStore(Store):
 
     def ident_to_node(self, identifier, create=False):
         node_type, node_id = self.ident_to_node_def(identifier)
+
         try:
             log.debug("Looking up node: %s => %s" % (node_type,node_id))
             return self.data_store.get_node(node_type, node_id)
@@ -381,6 +382,8 @@ class AgamemnonStore(Store):
             if node_type is None:
                 node_type = str(uuid.uuid1()).replace("-","_")
                 self.bind(node_type, namespace)
+            elif node_type == "":
+                node_type = RDF_DEFAULT_PREFIX
 
             return node_type, node_id
         elif isinstance(identifier,BNode): 

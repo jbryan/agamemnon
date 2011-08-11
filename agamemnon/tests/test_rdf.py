@@ -146,6 +146,12 @@ class GraphMemoryTestCase(unittest.TestCase):
         self.assertEqual(node.type, "bibble")
         self.assertEqual(node.key, "babble")
 
+        # make sure if we reference a predicate as a subject or object, we will
+        # still be able recover the correct uri
+        uri = URIRef("http://www.example.org/rdf/doit")
+        node = self.graph1.store.ident_to_node(uri, True)
+        self.assertEqual(self.graph1.store.node_to_ident(node), uri)
+
     def testAdd(self):
         self.addStuff(self.graph1)
 
