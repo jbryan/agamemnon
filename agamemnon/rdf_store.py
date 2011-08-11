@@ -1,7 +1,7 @@
 
 from rdflib.store import Store, NO_STORE, VALID_STORE
 from rdflib.plugin import register
-from rdflib.term import URIRef, Literal, BNode
+from rdflib.term import URIRef, Literal, BNode, Statement
 from rdflib.namespace import Namespace, split_uri
 from agamemnon.factory import load_from_settings
 from agamemnon.exceptions import NodeNotFoundException
@@ -37,10 +37,8 @@ class AgamemnonStore(Store):
 
         # namespace and prefix indexes
         self._ignored_node_types = set(['reference'])
-        self.namespace_base = "http://localhost/"
 
-        if configuration:
-            self._process_config(configuration)
+        self.configuration = configuration or dict()
 
         if data_store:
             self.data_store = data_store
@@ -49,8 +47,7 @@ class AgamemnonStore(Store):
 
     def open(self, configuration=None, create=False, repl_factor = 1):
         if configuration:
-            self._process_config(configuration)
-
+            self.configuration = configuration
         keyspace = self.configuration['agamemnon.keyspace']
         if create and keyspace != "memory":
             hostlist = json.loads(self.configuration['agamemnon.host_list'])
@@ -65,6 +62,7 @@ class AgamemnonStore(Store):
                 system_manager.create_keyspace(keyspace, replication_factor=repl_factor)
 
         self.data_store = load_from_settings(self.configuration)
+
         return VALID_STORE
 
     @property
@@ -74,8 +72,7 @@ class AgamemnonStore(Store):
     @data_store.setter
     def data_store(self, ds):
         self._ds = ds
-        if self.namespace("") is None:
-            self.bind("",self.namespace_base)
+        self._process_config()
 
     @property
     def ignore_reference_nodes(self):
@@ -90,11 +87,11 @@ class AgamemnonStore(Store):
 
     @property
     def namespace_base(self):
-        return self._namespace_base
+        return self.namespace("")
 
     @namespace_base.setter
     def namespace_base(self, value):
-        self._namespace_base = Namespace(value)
+        self.bind("",value)
 
     def ignore(self, node_type):
         self._ignored_node_types.add(node_type)
@@ -102,10 +99,9 @@ class AgamemnonStore(Store):
     def unignore(self, node_type):
         self._ignored_node_types.remove(node_type)
 
-    def _process_config(self, configuration):
-        self.configuration = configuration
+    def _process_config(self):
         config_prefix = "agamemnon.rdf_"
-        for key, value in configuration.items():
+        for key, value in self.configuration.items():
             if key.startswith(config_prefix):
                 setattr(self, key[len(config_prefix):], value)
 
@@ -116,6 +112,10 @@ class AgamemnonStore(Store):
 
         if isinstance(predicate, Literal):
             raise TypeError("Predicate can't be literal")
+
+        if isinstance(predicate, Statement):
+            #TODO: support sentence objects
+            raise TypeError("Agamemnon doesn't support sentential objects.")
 
         p_rel_type = self.ident_to_rel_type(predicate) 
         s_node = self.ident_to_node(subject, True)
@@ -389,7 +389,7 @@ class AgamemnonStore(Store):
             node_id = identifier.encode("utf-8")
             return node_type, node_id
         else:
-            raise ValueError("Unknown identifier type %r" % identifier)
+            raise ValueError("Unknown identifier type %r" % identifier.__class__)
 
     def rel_type_to_ident(self, rel_type):
         if ":" in rel_type:

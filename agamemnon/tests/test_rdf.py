@@ -215,8 +215,8 @@ class GraphMemoryTestCase(unittest.TestCase):
 
         #from rdflib.term import Statement
         #c = URIRef("http://example.org/foo#c")
-        #r = URIRef("http://example.org/foo#r")
-        #s = Statement((self.michel, self.likes, self.pizza), c)
+        #r = Literal("blah")
+        #s = Statement((self.michel, self.likes, self.pizza), None)
         #graph.add((s, RDF.value, r))
         #self.assertEquals(r, graph.value(s, RDF.value))
         #self.assertEquals(s, graph.value(predicate=RDF.value, object=r))
@@ -477,3 +477,9 @@ class GraphCassandraTestCase(GraphMemoryTestCase):
         'agamemnon.host_list' : '["localhost:9160"]',
         'agamemnon.rdf_namespace_base' : 'http://www.example.org/rdf/',
     }
+
+
+if __name__ == "__main__":
+    suite = unittest.TestLoader().loadTestsFromTestCase(GraphMemoryTestCase)
+    unittest.TextTestRunner(verbosity=2).run(suite)
+
