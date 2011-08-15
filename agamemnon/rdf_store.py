@@ -311,6 +311,14 @@ class AgamemnonStore(Store):
                         predicate = self.rel_type_to_ident(p_rel_type)
                         log.debug("Found %s, %s, %s" % (subject, predicate, object))
                         yield subject, predicate, object
+                for rel in s_node.relationships.outgoing:
+                    subject = self.rel_to_statement(rel)
+                    for p_rel_type in rel.attributes.keys():
+                        if p_rel_type.startswith("__"): continue #ignore special names
+                        if rel[p_rel_type] == object.toPython():
+                            predicate = self.rel_type_to_ident(p_rel_type)
+                            log.debug("Found %s, %s, %s" % (subject, predicate, object))
+                            yield subject, predicate, object
 
         else:
             o_node = self.ident_to_node(object) 
@@ -334,6 +342,14 @@ class AgamemnonStore(Store):
                 log.debug("Found %s, %s, %s" % (subject, predicate, object))
                 yield subject, predicate, object
 
+                subject = self.rel_to_statement(rel)
+                for p_rel_type in rel.attributes.keys():
+                    if p_rel_type.startswith("__"): continue #ignore special names
+                    object = Literal(rel[p_rel_type])
+                    predicate = self.rel_type_to_ident(p_rel_type)
+                    log.debug("Found %s, %s, %s" % (subject, predicate, object))
+                    yield subject, predicate, object
+
             for p_rel_type in s_node.attributes.keys():
                 if p_rel_type.startswith("__"): continue #ignore special names
                 predicate = self.rel_type_to_ident(p_rel_type)
@@ -347,6 +363,13 @@ class AgamemnonStore(Store):
             if ref.target_node.key in self._ignored_node_types: continue
             for instance in ref.target_node.instance.outgoing:
                 yield instance.target_node
+
+
+    def rel_to_statement(self, rel):
+        subject = self.node_to_ident(rel.source_node)
+        predicate = self.rel_type_to_ident(rel.type)
+        object = self.node_to_ident(rel.target_node)
+        return Statement((subject, predicate, object), None)
 
     def node_to_ident(self, node):
         if node.type == BNODE_NODE_TYPE:
