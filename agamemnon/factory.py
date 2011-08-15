@@ -3,6 +3,7 @@ import json
 import string
 import uuid
 import datetime
+import dateutil
 from pycassa.cassandra.ttypes import NotFoundException
 from agamemnon.graph_constants import RELATIONSHIP_KEY_PATTERN, OUTBOUND_RELATIONSHIP_CF, RELATIONSHIP_INDEX, ENDPOINT_NAME_TEMPLATE, INBOUND_RELATIONSHIP_CF
 import pycassa
@@ -365,7 +366,7 @@ class DataStore(object):
         elif type == '$f':
             return float(content)
         elif type == '$t':
-            return datetime.datetime.strptime(content.replace("-", ""), "%Y%m%dT%H:%M:%S")
+            return dateutil.parser.parse(content)
 
     def serialize_value(self, value):
         if isinstance(value, bool):
@@ -383,7 +384,7 @@ class DataStore(object):
         elif isinstance(value, dict):
             return self.serialize_columns(value)
         elif isinstance(value, datetime.datetime):
-            return '$t%s' % value.strftime("%Y-%m-%dT%H:%M:%S")
+            return '$t%s' % value.isoformat()
         else:
             raise TypeError('Cannot serialize: %s' % type(value))
 
