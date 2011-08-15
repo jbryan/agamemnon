@@ -6,7 +6,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 README = open('README.rst').read()
 CHANGES = open('CHANGES.txt').read()
 
-requires = ['pycassa', 'thrift05', 'setuptools','ordereddict','rdflib','rdfextras']
+requires = ['pycassa', 'thrift05', 'setuptools','ordereddict','rdflib','rdfextras','python-dateutil']
 tests_requires = requires + ['nose', 'mock']
 
 setup(name='agamemnon',
