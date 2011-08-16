@@ -10,7 +10,7 @@ requires = ['pycassa', 'thrift05', 'setuptools','ordereddict','rdflib','rdfextra
 tests_requires = requires + ['nose', 'mock']
 
 setup(name='agamemnon',
-      version='0.3.0.0',
+      version='0.3.1.0',
       description='A graph database built on top of cassandra',
       long_description=README + "\n\n" + CHANGES,
       classifiers=[
