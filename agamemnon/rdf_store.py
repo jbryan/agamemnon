@@ -134,23 +134,28 @@ class AgamemnonStore(Store):
     def remove(self, triple, context=None):
         for (subject, predicate, object), c in self.triples(triple):
             log.debug("Deleting %s, %s, %s" % (subject, predicate, object))
-            s_node = self.ident_to_node(subject)
             p_rel_type = self.ident_to_rel_type(predicate)
-            if isinstance(object, Literal):
-                if p_rel_type in s_node.attributes:
-                    if s_node[p_rel_type] == object.toPython():
-                        del s_node[p_rel_type]
-                        s_node.commit()
-
-                        s_node = self.data_store.get_node(s_node.type, s_node.key)
-                        log.debug("ATTS: %s" %s_node.attributes)
-
+            if isinstance(subject, Statement):
+                for rel in self._statement_to_rel(subject):
+                    del rel[p_rel_type]
+                    rel.commit()
             else:
-                o_node_type, o_node_id = self.ident_to_node_def(object) 
-                if o_node_type in self._ignored_node_types: return
-                for rel in getattr(s_node, p_rel_type).relationships_with(o_node_id):
-                    if rel.target_node.type == o_node_type:
-                        rel.delete()
+                s_node = self.ident_to_node(subject)
+                if isinstance(object, Literal):
+                    if p_rel_type in s_node.attributes:
+                        if s_node[p_rel_type] == object.toPython():
+                            del s_node[p_rel_type]
+                            s_node.commit()
+
+                            s_node = self.data_store.get_node(s_node.type, s_node.key)
+                            log.debug("ATTS: %s" %s_node.attributes)
+
+                else:
+                    o_node_type, o_node_id = self.ident_to_node_def(object) 
+                    if o_node_type in self._ignored_node_types: return
+                    for rel in getattr(s_node, p_rel_type).relationships_with(o_node_id):
+                        if rel.target_node.type == o_node_type:
+                            rel.delete()
 
     def triples(self, (subject, predicate, object), context=None):
         log.debug("Looking for triple %s, %s, %s" % (subject, predicate, object))
@@ -192,36 +197,46 @@ class AgamemnonStore(Store):
 
     def _triples_by_spo(self, subject, predicate, object):
         log.debug("Finding triple by spo")
-        p_rel_type = self.ident_to_rel_type(predicate) 
-        s_node = self.ident_to_node(subject)
-        if s_node.type in self._ignored_node_types: return
-        if isinstance(object, Literal):
-            if p_rel_type in s_node.attributes:
-                if s_node[p_rel_type] == object.toPython():
-                    log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                    yield subject, predicate, object
+        if isinstance(subject, Statement):
+            for rel in self._statement_to_rel(subject):
+                for triple in self._relationship_triples(rel,search_pred=predicate,search_obj=object):
+                    yield triple
         else:
-            o_node_type, o_node_id = self.ident_to_node_def(object) 
-            if o_node_type in self._ignored_node_types: return
-            for rel in getattr(s_node, p_rel_type).relationships_with(o_node_id):
-                if rel.target_node.type == o_node_type:
-                    log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                    yield subject, predicate, object
+            p_rel_type = self.ident_to_rel_type(predicate) 
+            s_node = self.ident_to_node(subject)
+            if s_node.type in self._ignored_node_types: return
+            if isinstance(object, Literal):
+                if p_rel_type in s_node.attributes:
+                    if s_node[p_rel_type] == object.toPython():
+                        log.debug("Found %s, %s, %s" % (subject, predicate, object))
+                        yield subject, predicate, object
+            else:
+                o_node_type, o_node_id = self.ident_to_node_def(object) 
+                if o_node_type in self._ignored_node_types: return
+                for rel in getattr(s_node, p_rel_type).relationships_with(o_node_id):
+                    if rel.target_node.type == o_node_type:
+                        log.debug("Found %s, %s, %s" % (subject, predicate, object))
+                        yield subject, predicate, object
 
     def _triples_by_sp(self, subject, predicate):
         log.debug("Finding triple by sp")
-        p_rel_type = self.ident_to_rel_type(predicate) 
-        s_node = self.ident_to_node(subject) 
-        if s_node.type in self._ignored_node_types: return
-        for rel in getattr(s_node, p_rel_type).outgoing:
-            object = self.node_to_ident(rel.target_node)
-            log.debug("Found %s, %s, %s" % (subject, predicate, object))
-            yield subject, predicate, object
+        if isinstance(subject, Statement):
+            for rel in self._statement_to_rel(subject):
+                for triple in self._relationship_triples(rel,search_pred=predicate):
+                    yield triple
+        else:
+            p_rel_type = self.ident_to_rel_type(predicate) 
+            s_node = self.ident_to_node(subject) 
+            if s_node.type in self._ignored_node_types: return
+            for rel in getattr(s_node, p_rel_type).outgoing:
+                object = self.node_to_ident(rel.target_node)
+                log.debug("Found %s, %s, %s" % (subject, predicate, object))
+                yield subject, predicate, object
 
-        if p_rel_type in s_node.attributes:
-            object = Literal(s_node[p_rel_type])
-            log.debug("Found %s, %s, %s" % (subject, predicate, object))
-            yield subject, predicate, object
+            if p_rel_type in s_node.attributes:
+                object = Literal(s_node[p_rel_type])
+                log.debug("Found %s, %s, %s" % (subject, predicate, object))
+                yield subject, predicate, object
 
     def _triples_by_po(self, predicate, object):
         log.debug("Finding triple by po")
@@ -234,6 +249,9 @@ class AgamemnonStore(Store):
                     if s_node[p_rel_type] == object.toPython():
                         log.debug("Found %s, %s, %s" % (subject, predicate, object))
                         yield subject, predicate, object
+                for rel in getattr(s_node, p_rel_type).outgoing:
+                    for triple in self._relationship_triples(rel,search_obj=object, search_pred=predicate):
+                        yield triple
         else:
             o_node = self.ident_to_node(object) 
             for rel in getattr(o_node, p_rel_type).incoming:
@@ -243,41 +261,51 @@ class AgamemnonStore(Store):
 
     def _triples_by_so(self, subject, object):
         log.debug("Finding triple by so.")
-        s_node = self.ident_to_node(subject) 
-        if s_node.type in self._ignored_node_types: return
-        if isinstance(object, Literal):
-            for p_rel_type in s_node.attributes.keys():
-                if p_rel_type.startswith("__"): continue #ignore special names
-                if s_node[p_rel_type] == object.toPython():
-                    predicate = self.rel_type_to_ident(p_rel_type)
-                    log.debug("Found %s, %s, %r" % (subject, predicate, object))
-                    yield subject, predicate, object
+        if isinstance(subject, Statement):
+            for rel in self._statement_to_rel(subject):
+                for triple in self._relationship_triples(rel,search_obj=object):
+                    yield triple
         else:
-            o_node = self.ident_to_node(object) 
-            if o_node.type in self._ignored_node_types: return
-            for rel in s_node.relationships.outgoing:
-                if rel.target_node == o_node:
-                    predicate = self.rel_type_to_ident(rel.type)
-                    log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                    yield subject, predicate, object
+            s_node = self.ident_to_node(subject) 
+            if s_node.type in self._ignored_node_types: return
+            if isinstance(object, Literal):
+                for p_rel_type in s_node.attributes.keys():
+                    if p_rel_type.startswith("__"): continue #ignore special names
+                    if s_node[p_rel_type] == object.toPython():
+                        predicate = self.rel_type_to_ident(p_rel_type)
+                        log.debug("Found %s, %s, %r" % (subject, predicate, object))
+                        yield subject, predicate, object
+            else:
+                o_node = self.ident_to_node(object) 
+                if o_node.type in self._ignored_node_types: return
+                for rel in s_node.relationships.outgoing:
+                    if rel.target_node == o_node:
+                        predicate = self.rel_type_to_ident(rel.type)
+                        log.debug("Found %s, %s, %s" % (subject, predicate, object))
+                        yield subject, predicate, object
 
     def _triples_by_s(self, subject):
         log.debug("Finding triple by s")
-        s_node = self.ident_to_node(subject) 
-        if s_node.type in self._ignored_node_types: return
-        for rel in s_node.relationships.outgoing:
-            if rel.target_node.type in self._ignored_node_types: continue
-            predicate = self.rel_type_to_ident(rel.type)
-            object = self.node_to_ident(rel.target_node)
-            log.debug("Found %s, %s, %s" % (subject, predicate, object))
-            yield subject, predicate, object
+        if isinstance(subject, Statement):
+            for rel in self._statement_to_rel(subject):
+                for triple in self._relationship_triples(rel):
+                    yield triple
+        else:
+            s_node = self.ident_to_node(subject) 
+            if s_node.type in self._ignored_node_types: return
+            for rel in s_node.relationships.outgoing:
+                if rel.target_node.type in self._ignored_node_types: continue
+                predicate = self.rel_type_to_ident(rel.type)
+                object = self.node_to_ident(rel.target_node)
+                log.debug("Found %s, %s, %s" % (subject, predicate, object))
+                yield subject, predicate, object
 
-        for p_rel_type in s_node.attributes.keys():
-            if p_rel_type.startswith("__"): continue #ignore special names
-            predicate = self.rel_type_to_ident(p_rel_type)
-            object = Literal(s_node[p_rel_type])
-            log.debug("Found %s, %s, %r" % (subject, predicate, object))
-            yield subject, predicate, object
+            for p_rel_type in s_node.attributes.keys():
+                if p_rel_type.startswith("__"): continue #ignore special names
+                predicate = self.rel_type_to_ident(p_rel_type)
+                object = Literal(s_node[p_rel_type])
+                log.debug("Found %s, %s, %r" % (subject, predicate, object))
+                yield subject, predicate, object
 
     def _triples_by_p(self, predicate):
         log.debug("Finding triple by p")
@@ -288,6 +316,8 @@ class AgamemnonStore(Store):
             if s_node.type in self._ignored_node_types: continue
             subject = self.node_to_ident(s_node)
             for rel in getattr(s_node, p_rel_type).outgoing:
+                for triple in self._relationship_triples(rel,search_pred=predicate):
+                    yield triple
                 if rel.target_node.type in self._ignored_node_types: continue
                 object = self.node_to_ident(rel.target_node)
                 log.debug("Found %s, %s, %s" % (subject, predicate, object))
@@ -312,13 +342,8 @@ class AgamemnonStore(Store):
                         log.debug("Found %s, %s, %s" % (subject, predicate, object))
                         yield subject, predicate, object
                 for rel in s_node.relationships.outgoing:
-                    subject = self.rel_to_statement(rel)
-                    for p_rel_type in rel.attributes.keys():
-                        if p_rel_type.startswith("__"): continue #ignore special names
-                        if rel[p_rel_type] == object.toPython():
-                            predicate = self.rel_type_to_ident(p_rel_type)
-                            log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                            yield subject, predicate, object
+                    for triple in self._relationship_triples(rel):
+                        yield triple
 
         else:
             o_node = self.ident_to_node(object) 
@@ -342,13 +367,8 @@ class AgamemnonStore(Store):
                 log.debug("Found %s, %s, %s" % (subject, predicate, object))
                 yield subject, predicate, object
 
-                subject = self.rel_to_statement(rel)
-                for p_rel_type in rel.attributes.keys():
-                    if p_rel_type.startswith("__"): continue #ignore special names
-                    object = Literal(rel[p_rel_type])
-                    predicate = self.rel_type_to_ident(p_rel_type)
-                    log.debug("Found %s, %s, %s" % (subject, predicate, object))
-                    yield subject, predicate, object
+                for triple in self._relationship_triples(rel):
+                    yield triple
 
             for p_rel_type in s_node.attributes.keys():
                 if p_rel_type.startswith("__"): continue #ignore special names
@@ -364,12 +384,26 @@ class AgamemnonStore(Store):
             for instance in ref.target_node.instance.outgoing:
                 yield instance.target_node
 
+    def _relationship_triples(self, rel, search_pred=None, search_obj=None):
+        rel_subject = self.rel_to_statement(rel)
+        for p_rel_type in rel.attributes.keys():
+            if p_rel_type.startswith("__"): continue #ignore special names
+            object = Literal(rel[p_rel_type])
+            predicate = self.rel_type_to_ident(p_rel_type)
+            if search_pred and search_pred != predicate: continue
+            if search_obj and search_obj != predicate: continue
+            log.debug("Found %s, %s, %s" % (rel_subject, predicate, object))
+            yield rel_subject, predicate, object
+
+
 
     def rel_to_statement(self, rel):
         subject = self.node_to_ident(rel.source_node)
         predicate = self.rel_type_to_ident(rel.type)
         object = self.node_to_ident(rel.target_node)
-        return Statement((subject, predicate, object), None)
+        statement = Statement((subject, predicate, object), None)
+        log.debug("Converted relationship %s to: %s" % (rel, statement))
+        return statement
 
     def node_to_ident(self, node):
         if node.type == BNODE_NODE_TYPE:
