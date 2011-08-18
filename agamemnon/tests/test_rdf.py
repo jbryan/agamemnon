@@ -225,8 +225,20 @@ class GraphMemoryTestCase(unittest.TestCase):
         s = Statement((self.michel, self.likes, self.pizza), None)
         graph.add((s, RDF.value, r))
         self.assertEqual(len(list(graph.triples((s, RDF.value, r)))), 1)
+        self.assertEqual(len(list(graph.triples((s, RDF.value, None)))), 1)
+        self.assertEqual(len(list(graph.triples((None, RDF.value, r)))), 1)
+        self.assertEqual(len(list(graph.triples((s, None, r)))), 1)
+        self.assertEqual(len(list(graph.triples((s, None, None)))), 1)
+        self.assertEqual(len(list(graph.triples((None, RDF.value, None)))), 1)
+        self.assertEqual(len(list(graph.triples((None, None, r)))), 1)
+        self.assertEqual(len(list(graph.triples((None, None, None)))), 2)
+
         self.assertEquals(r, graph.value(s, RDF.value))
-        #self.assertEquals(s, graph.value(predicate=RDF.value, object=r))
+        self.assertEquals(s, graph.value(predicate=RDF.value, object=r))
+        self.assertEquals(RDF.value, graph.value(s, None, r))
+
+        graph.remove((s, RDF.value, r))
+        self.assertEqual(len(list(graph.triples((s, RDF.value, r)))), 0)
 
     #def testGraphValue(self):
         #from rdflib.graph import GraphValue

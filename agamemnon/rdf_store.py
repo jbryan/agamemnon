@@ -257,7 +257,7 @@ class AgamemnonStore(Store):
                     if s_node[p_rel_type] == object.toPython():
                         log.debug("Found %s, %s, %s" % (subject, predicate, object))
                         yield subject, predicate, object
-                for rel in getattr(s_node, p_rel_type).outgoing:
+                for rel in s_node.relationships.outgoing:
                     for triple in self._relationship_triples(rel,search_obj=object, search_pred=predicate):
                         yield triple
         else:
@@ -323,13 +323,15 @@ class AgamemnonStore(Store):
         for s_node in self._all_nodes():
             if s_node.type in self._ignored_node_types: continue
             subject = self.node_to_ident(s_node)
-            for rel in getattr(s_node, p_rel_type).outgoing:
+            for rel in s_node.relationships.outgoing:
                 for triple in self._relationship_triples(rel,search_pred=predicate):
                     yield triple
+                if rel.type != p_rel_type: continue
                 if rel.target_node.type in self._ignored_node_types: continue
                 object = self.node_to_ident(rel.target_node)
                 log.debug("Found %s, %s, %s" % (subject, predicate, object))
                 yield subject, predicate, object
+
 
             if p_rel_type in s_node.attributes:
                 object = Literal(s_node[p_rel_type])
