@@ -118,14 +118,22 @@ class AgamemnonStore(Store):
             raise TypeError("Agamemnon doesn't support sentential objects.")
 
         p_rel_type = self.ident_to_rel_type(predicate) 
-        s_node = self.ident_to_node(subject, True)
 
         #inline literals as attributes
-        if isinstance(object, Literal):
+        if isinstance(subject, Statement):
+            if not isinstance(object, Literal):
+                raise TypeError("Agamemnon requires sentence objects to be literal.")
+            for rel in self._statement_to_rel(subject, create=True):
+                # TODO: this loop should execute only once ... should we sanity check it?
+                rel[p_rel_type] = object.toPython()
+                rel.commit()
+        elif isinstance(object, Literal):
+            s_node = self.ident_to_node(subject, True)
             log.debug("Setting %r on %s" % (p_rel_type, s_node))
             s_node[p_rel_type] = object.toPython()
             s_node.commit()
         else:
+            s_node = self.ident_to_node(subject, True)
             o_node = self.ident_to_node(object, True)
 
             log.debug("Creating relationship of type %s from %s on %s" % (p_rel_type, s_node, o_node))
@@ -395,6 +403,23 @@ class AgamemnonStore(Store):
             log.debug("Found %s, %s, %s" % (rel_subject, predicate, object))
             yield rel_subject, predicate, object
 
+    def _statement_to_rel(self, statement, create=False):
+        subject, predicate, object = statement
+        if isinstance(object, Literal):
+            raise TypeError("Statements with literal objects not supported.")
+        if create:
+            s_node = self.ident_to_node(subject, create=True)
+            p_rel_type = self.ident_to_rel_type(predicate)
+            o_node = self.ident_to_node(object, create=True)
+            rel = getattr(s_node,p_rel_type)(o_node)
+            yield rel
+        else:
+            s_node = self.ident_to_node(subject, create=True)
+            p_rel_type = self.ident_to_rel_type(predicate)
+            o_node_type, o_node_key = self.ident_to_node_def(object)
+            for rel in get_attr(o_node, p_rel_type).relationships_with(o_node_key):
+                if rel.target_node.type == o_node_type:
+                    yield rel
 
 
     def rel_to_statement(self, rel):
