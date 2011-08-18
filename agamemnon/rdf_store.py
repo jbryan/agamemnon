@@ -409,19 +409,19 @@ class AgamemnonStore(Store):
         (subject, predicate, object), _ = statement
         if isinstance(object, Literal):
             raise TypeError("Statements with literal objects not supported.")
+
+        s_node = self.ident_to_node(subject, create=True)
+        p_rel_type = self.ident_to_rel_type(predicate)
+        o_node_type, o_node_key = self.ident_to_node_def(object)
+        for rel in getattr(s_node, p_rel_type).relationships_with(o_node_key):
+            if rel.target_node.type == o_node_type:
+                yield rel
+                return
+
         if create:
-            s_node = self.ident_to_node(subject, create=True)
-            p_rel_type = self.ident_to_rel_type(predicate)
             o_node = self.ident_to_node(object, create=True)
             rel = getattr(s_node,p_rel_type)(o_node)
             yield rel
-        else:
-            s_node = self.ident_to_node(subject, create=True)
-            p_rel_type = self.ident_to_rel_type(predicate)
-            o_node_type, o_node_key = self.ident_to_node_def(object)
-            for rel in getattr(s_node, p_rel_type).relationships_with(o_node_key):
-                if rel.target_node.type == o_node_type:
-                    yield rel
 
 
     def rel_to_statement(self, rel):
