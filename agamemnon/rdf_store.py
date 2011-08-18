@@ -399,12 +399,12 @@ class AgamemnonStore(Store):
             object = Literal(rel[p_rel_type])
             predicate = self.rel_type_to_ident(p_rel_type)
             if search_pred and search_pred != predicate: continue
-            if search_obj and search_obj != predicate: continue
+            if search_obj and search_obj != object: continue
             log.debug("Found %s, %s, %s" % (rel_subject, predicate, object))
             yield rel_subject, predicate, object
 
     def _statement_to_rel(self, statement, create=False):
-        subject, predicate, object = statement
+        (subject, predicate, object), _ = statement
         if isinstance(object, Literal):
             raise TypeError("Statements with literal objects not supported.")
         if create:
@@ -417,7 +417,7 @@ class AgamemnonStore(Store):
             s_node = self.ident_to_node(subject, create=True)
             p_rel_type = self.ident_to_rel_type(predicate)
             o_node_type, o_node_key = self.ident_to_node_def(object)
-            for rel in get_attr(o_node, p_rel_type).relationships_with(o_node_key):
+            for rel in getattr(s_node, p_rel_type).relationships_with(o_node_key):
                 if rel.target_node.type == o_node_type:
                     yield rel
 

@@ -216,15 +216,16 @@ class GraphMemoryTestCase(unittest.TestCase):
         asserte(len(list(triples((Any, Any, Any)))), 0)
 
 
-    #def testStatementNode(self):
-        #graph = self.graph1
+    def testStatementNode(self):
+        graph = self.graph1
 
-        #from rdflib.term import Statement
-        #c = URIRef("http://example.org/foo#c")
-        #r = Literal("blah")
-        #s = Statement((self.michel, self.likes, self.pizza), None)
-        #graph.add((s, RDF.value, r))
-        #self.assertEquals(r, graph.value(s, RDF.value))
+        from rdflib.term import Statement
+        c = URIRef("http://example.org/foo#c")
+        r = Literal("blah")
+        s = Statement((self.michel, self.likes, self.pizza), None)
+        graph.add((s, RDF.value, r))
+        self.assertEqual(len(list(graph.triples((s, RDF.value, r)))), 1)
+        self.assertEquals(r, graph.value(s, RDF.value))
         #self.assertEquals(s, graph.value(predicate=RDF.value, object=r))
 
     #def testGraphValue(self):
