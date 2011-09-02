@@ -1,0 +1,474 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF
+   xmlns:admin="http://webns.net/mvcb/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:cert="http://www.w3.org/ns/auth/cert#"
+   xmlns:con="http://www.w3.org/2000/10/swap/pim/contact#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:dct="http://purl.org/dc/terms/"
+   xmlns:default1="http://example.org/terms#"
+   xmlns:default3="http://www.w3.org/2003/01/geo/wgs84_pos#"
+   xmlns:default4="http://xmlns.com/foaf/0.1/"
+   xmlns:doap="http://usefulinc.com/ns/doap#"
+   xmlns:eg="http://example.org/"
+   xmlns:eg1="http://example.org#"
+   xmlns:ex="http://example.org/schema#"
+   xmlns:lj="http://www.livejournal.org/rss/lj/1.0/"
+   xmlns:owl="http://www.w3.org/2002/07/owl#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+   xmlns:redfoot="http://redfoot.net/2005/session#"
+   xmlns:rsa="http://www.w3.org/ns/auth/rsa#"
+   xmlns:ya="http://blogs.yandex.ru/schema/foaf/"
+>
+  <rdf:Description rdf:about="http://danbri.livejournal.com/">
+    <lj:dateCreated>2003-09-23T12:20:50</lj:dateCreated>
+    <lj:dateLastUpdated>2007-07-24T14:35:01</lj:dateLastUpdated>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www4.wiwiss.fu-berlin.de/booksMeshup/books/006251587X">
+    <dc:creator rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+    <dc:title>Weaving the Web: The Original Design and Ultimate Destiny of the World Wide Web</dc:title>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://bigasterisk.com/foaf.rdf">
+    <default4:primaryTopic rdf:resource="http://bigasterisk.com/foaf.rdf#drewp"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/PersonalProfileDocument"/>
+    <admin:errorReportsTo rdf:resource="mailto:leigh@ldodds.com"/>
+    <default4:maker rdf:resource="http://bigasterisk.com/foaf.rdf#drewp"/>
+    <admin:generatorAgent rdf:resource="http://www.ldodds.com/foaf/foaf-a-matic"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://example.org/">
+    <eg1:prop>10</eg1:prop>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://danbri.livejournal.com/data/rss">
+    <dc:type>application/rss+xml</dc:type>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://danbri.livejournal.com/data/http%3A%2F%2Fdanbri.org%2F">
+    <dc:title></dc:title>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://dig.csail.mit.edu/2005/ajar/ajaw/data#Tabulator">
+    <doap:developer rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.ecs.soton.ac.uk/~dt2/dlstuff/www2006_data#panel-panelk01">
+    <con:participant rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+    <rdfs:label>The Next Wave of the Web (Plenary Panel)</rdfs:label>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://wiki.ontoworld.org/index.php/_IRW2006">
+    <con:participant rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+    <dc:title>Identity, Reference and the Web workshop 2006</dc:title>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.w3.org/DesignIssues/Overview.html">
+    <default4:maker rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+    <dc:title>Design Issues for the World Wide Web</dc:title>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://dig.csail.mit.edu/breadcrumbs/blog/4">
+    <default4:maker rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+    <rdfs:seeAlso rdf:resource="http://dig.csail.mit.edu/breadcrumbs/blog/feed/4"/>
+    <dc:title>timbl's blog</dc:title>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.w3.org/data#W3C">
+    <default4:member rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.example.org/a">
+    <eg:prop>&lt;br&gt;&lt;/br&gt;</eg:prop>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://bigasterisk.com/foaf.rdf#accnt">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/OnlineAccount"/>
+    <default4:accountServiceHomePage rdf:resource="http://bigasterisk.com/cert/"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://bigasterisk.com/foaf.rdf#drewp">
+    <default4:homepage rdf:resource="http://bigasterisk.com"/>
+    <default4:currentProject rdf:resource="http://gasuse.bigasterisk.com/"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:knows rdf:nodeID="sPtXJAkC93"/>
+    <default4:holdsAccount rdf:resource="http://delicious.com/drewpca/"/>
+    <default4:knows rdf:resource="http://bblfish.net/people/henry/card#me"/>
+    <default4:currentProject rdf:resource="http://fantasyfamegame.com/"/>
+    <default4:knows rdf:nodeID="sPtXJAkC94"/>
+    <default4:schoolHomepage rdf:resource="http://berkeley.edu"/>
+    <rdfs:seeAlso rdf:resource="http://revyu.com/people/drewp/about/rdf"/>
+    <default4:holdsAccount rdf:resource="http://identi.ca/user/8563"/>
+    <rdfs:seeAlso rdf:resource="http://identi.ca/drewp/foaf"/>
+    <default4:knows rdf:resource="http://collectivesource.com/foaf.rdf#nathan"/>
+    <owl:sameAs rdf:resource="http://revyu.com/people/drewp"/>
+    <default4:based_near rdf:nodeID="sPtXJAkC95"/>
+    <default4:workplaceHomepage rdf:resource="http://www.dreamworksanimation.com/"/>
+    <default4:based_near rdf:resource="http://sws.geonames.org/5404335/"/>
+    <owl:sameAs rdf:resource="http://identi.ca/user/8563"/>
+    <default4:depiction rdf:resource="http://bigasterisk.com/drewheadshot"/>
+    <default4:holdsAccount rdf:resource="http://bigasterisk.com/foaf.rdf#accnt"/>
+    <default4:family_name>Perttula</default4:family_name>
+    <default4:mbox_sha1sum>847eea9f89b1efff3c735c0d73b30b8280cfc030</default4:mbox_sha1sum>
+    <default4:name>Drew Perttula</default4:name>
+    <default4:nick>drewp</default4:nick>
+    <redfoot:hexdigest>a58baff6ce11790bea51287049899088</redfoot:hexdigest>
+    <default4:title>Mr</default4:title>
+    <default4:givenname>Drew</default4:givenname>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://collectivesource.com/foaf.rdf#nathan">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <rdfs:seeAlso rdf:resource="http://collectivesource.com/foaf.rdf"/>
+    <default4:name>Nathan Wilson</default4:name>
+    <default4:mbox_sha1sum>25b089f5bc32b48f545daf04a60c4823dc477c80</default4:mbox_sha1sum>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://fantasyfamegame.com/">
+    <doap:homepage rdf:resource="http://fantasyfamegame.com/"/>
+    <doap:category rdf:resource="http://rdflib.net/projects#using_rdflib"/>
+    <doap:maintainer rdf:resource="http://bigasterisk.com/foaf.rdf#drewp"/>
+    <rdf:type rdf:resource="http://usefulinc.com/ns/doap#Project"/>
+    <doap:description>(unreleased)</doap:description>
+    <doap:name>Fantasy Fame Game</doap:name>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.w3.org/2011/Talks/0331-hyderabad-tbl/data#talk">
+    <default4:maker rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+    <dct:title>Designing the Web for an Open Society</dct:title>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.w3.org/2000/10/swap/data#Cwm">
+    <doap:developer rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://danbri.livejournal.com/profile">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Document"/>
+    <dc:title>LiveJournal.com Profile</dc:title>
+    <dc:description>Full LiveJournal.com profile, including information such as interests and bio.</dc:description>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://dig.csail.mit.edu/2007/01/camp/data#course">
+    <default4:maker rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://dig.csail.mit.edu/data#DIG">
+    <default4:member rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.w3.org/People/Berners-Lee/card#i">
+    <default4:weblog rdf:resource="http://dig.csail.mit.edu/breadcrumbs/blog/4"/>
+    <default4:phone rdf:resource="tel:+1-(617)-253-5702"/>
+    <owl:sameAs rdf:resource="http://www.advogato.org/person/timbl/foaf.rdf#me"/>
+    <default4:based_near rdf:nodeID="sPtXJAkC102"/>
+    <con:publicHomePage rdf:resource="http://www.w3.org/People/Berners-Lee/"/>
+    <default4:img rdf:resource="http://www.w3.org/Press/Stock/Berners-Lee/2001-europaeum-eighth.jpg"/>
+    <con:homePage rdf:resource="http://www.w3.org/People/Berners-Lee/"/>
+    <default4:account rdf:resource="http://en.wikipedia.org/User:Timbl"/>
+    <con:office rdf:nodeID="sPtXJAkC99"/>
+    <default4:account rdf:resource="http://identi.ca/timbl"/>
+    <con:assistant rdf:resource="http://www.w3.org/People/Berners-Lee/card#amy"/>
+    <default4:workplaceHomepage rdf:resource="http://www.w3.org/"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:mbox rdf:resource="mailto:timbl@w3.org"/>
+    <owl:sameAs rdf:resource="http://www4.wiwiss.fu-berlin.de/bookmashup/persons/Tim+Berners-Lee"/>
+    <owl:sameAs rdf:resource="http://identi.ca/user/45563"/>
+    <default4:openid rdf:resource="http://www.w3.org/People/Berners-Lee/"/>
+    <default4:homepage rdf:resource="http://www.w3.org/People/Berners-Lee/"/>
+    <rdf:type rdf:resource="http://www.w3.org/2000/10/swap/pim/contact#Male"/>
+    <owl:sameAs rdf:resource="http://www4.wiwiss.fu-berlin.de/dblp/resource/person/100007"/>
+    <rdfs:seeAlso rdf:resource="http://dig.csail.mit.edu/2008/webdav/timbl/foaf.rdf"/>
+    <rdfs:seeAlso rdf:resource="http://www.w3.org/2007/11/Talks/search/query"/>
+    <default4:account rdf:resource="http://twitter.com/timberners_lee"/>
+    <rdfs:label>Tim Berners-Lee</rdfs:label>
+    <default4:name>Timothy Berners-Lee</default4:name>
+    <con:preferredURI>http://www.w3.org/People/Berners-Lee/card#i</con:preferredURI>
+    <default4:givenname>Timothy</default4:givenname>
+    <default4:family_name>Berners-Lee</default4:family_name>
+    <default4:mbox_sha1sum>965c47c5a70db7407210cef6e4e6f5374a525c5c</default4:mbox_sha1sum>
+    <default4:title>Sir</default4:title>
+    <default4:nick>timbl</default4:nick>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://example.org/foo">
+    <eg:bar rdf:datatype="http://www.w3.org/2001/XMLSchema#long">10</eg:bar>
+    <eg:baz rdf:datatype="http://www.w3.org/2001/XMLSchema#long">10</eg:baz>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://example.org/node">
+    <eg:property>chat</eg:property>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://example.org/thing">
+    <ex:prop1>stuff</ex:prop1>
+    <ex:prop2>more</ex:prop2>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC118">
+    <default4:weblog rdf:resource="http://binzac.livejournal.com/"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <rdfs:seeAlso rdf:resource="http://binzac.livejournal.com/data/foaf"/>
+    <default4:tagLine></default4:tagLine>
+    <default4:nick>binzac</default4:nick>
+    <default4:member_name>binzac</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC119">
+    <rdfs:seeAlso rdf:resource="http://johnromkey.livejournal.com/data/foaf"/>
+    <default4:weblog rdf:resource="http://johnromkey.livejournal.com/"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:tagLine></default4:tagLine>
+    <default4:nick>johnromkey</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/107759235/5816918</default4:image>
+    <default4:member_name>johnromkey</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC112">
+    <default4:weblog rdf:resource="http://sandhawke.livejournal.com/"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <rdfs:seeAlso rdf:resource="http://sandhawke.livejournal.com/data/foaf"/>
+    <default4:tagLine></default4:tagLine>
+    <default4:nick>sandhawke</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/28466290/586448</default4:image>
+    <default4:member_name>Sandro</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC113">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <rdfs:seeAlso rdf:resource="http://danja.livejournal.com/data/foaf"/>
+    <default4:weblog rdf:resource="http://danja.livejournal.com/"/>
+    <default4:tagLine></default4:tagLine>
+    <default4:nick>danja</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/47976318/288760</default4:image>
+    <default4:member_name>ДарьБорисссна</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC110">
+    <rdfs:seeAlso rdf:resource="http://nmh.livejournal.com/data/foaf"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:weblog rdf:resource="http://nmh.livejournal.com/"/>
+    <default4:tagLine></default4:tagLine>
+    <default4:nick>nmh</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/119226/97764</default4:image>
+    <default4:member_name>goat</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC111">
+    <default4:weblog rdf:resource="http://crschmidt.livejournal.com/"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <rdfs:seeAlso rdf:resource="http://crschmidt.livejournal.com/data/foaf"/>
+    <default4:tagLine>Christopher Schmidt</default4:tagLine>
+    <default4:nick>crschmidt</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/80589366/627594</default4:image>
+    <default4:member_name>Chris Schmidt</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC116">
+    <rdfs:seeAlso rdf:resource="http://quercus.livejournal.com/data/foaf"/>
+    <default4:weblog rdf:resource="http://quercus.livejournal.com/"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:tagLine></default4:tagLine>
+    <default4:nick>quercus</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/1908057/581109</default4:image>
+    <default4:member_name>Dingbat</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC117">
+    <default4:weblog rdf:resource="http://nikolasco.livejournal.com/"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <rdfs:seeAlso rdf:resource="http://nikolasco.livejournal.com/data/foaf"/>
+    <default4:tagLine>Thought Torrent</default4:tagLine>
+    <default4:nick>nikolasco</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/38603346/857000</default4:image>
+    <default4:member_name>Atrus</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC114">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:weblog rdf:resource="http://missmhart.livejournal.com/"/>
+    <rdfs:seeAlso rdf:resource="http://missmhart.livejournal.com/data/foaf"/>
+    <default4:tagLine>Mags' Musings</default4:tagLine>
+    <default4:nick>missmhart</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/82994154/2242523</default4:image>
+    <default4:member_name>missmhart</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC115">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:weblog rdf:resource="http://bendiken.livejournal.com/"/>
+    <rdfs:seeAlso rdf:resource="http://bendiken.livejournal.com/data/foaf"/>
+    <default4:tagLine></default4:tagLine>
+    <default4:nick>bendiken</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/56686947/11976943</default4:image>
+    <default4:member_name>Arto Bendiken</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC122">
+    <rdfs:seeAlso rdf:resource="http://jsmarr.livejournal.com/data/foaf"/>
+    <default4:weblog rdf:resource="http://jsmarr.livejournal.com/"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:tagLine></default4:tagLine>
+    <default4:nick>jsmarr</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/65162517/13190989</default4:image>
+    <default4:member_name>Joseph Smarr</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC121">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:weblog rdf:resource="http://thesliver.livejournal.com/"/>
+    <rdfs:seeAlso rdf:resource="http://thesliver.livejournal.com/data/foaf"/>
+    <default4:tagLine></default4:tagLine>
+    <default4:nick>thesliver</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/3811411/3062</default4:image>
+    <default4:member_name>Sliver</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC120">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:weblog rdf:resource="http://daveman692.livejournal.com/"/>
+    <rdfs:seeAlso rdf:resource="http://daveman692.livejournal.com/data/foaf"/>
+    <default4:tagLine>David Recordon's (Old) Blog</default4:tagLine>
+    <default4:nick>daveman692</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/46843689/1356357</default4:image>
+    <default4:member_name>David Recordon</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC109">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <rdfs:seeAlso rdf:resource="http://brad.livejournal.com/data/foaf"/>
+    <default4:weblog rdf:resource="http://brad.livejournal.com/"/>
+    <default4:tagLine>brad's life</default4:tagLine>
+    <default4:nick>brad</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/54541970/2</default4:image>
+    <default4:member_name>Brad Fitzpatrick</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC108">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:weblog rdf:resource="http://anjeve.livejournal.com/"/>
+    <rdfs:seeAlso rdf:resource="http://anjeve.livejournal.com/data/foaf"/>
+    <default4:tagLine></default4:tagLine>
+    <default4:nick>anjeve</default4:nick>
+    <default4:image>http://l-userpic.livejournal.com/54077021/20017</default4:image>
+    <default4:member_name>anjeve</default4:member_name>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC101">
+    <default3:lat>42.361860</default3:lat>
+    <default3:long>-71.091840</default3:long>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC100">
+    <con:street2>MIT CSAIL Room 32-G524</con:street2>
+    <con:street>32 Vassar Street</con:street>
+    <con:country>USA</con:country>
+    <con:postalCode>02139</con:postalCode>
+    <con:city>Cambridge</con:city>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC103">
+    <cert:identity rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+    <rsa:modulus rdf:nodeID="sPtXJAkC104"/>
+    <rdf:type rdf:resource="http://www.w3.org/ns/auth/rsa#RSAPublicKey"/>
+    <rsa:public_exponent rdf:nodeID="sPtXJAkC105"/>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC102">
+    <default3:lat>42.361860</default3:lat>
+    <default3:long>-71.091840</default3:long>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC105">
+    <cert:decimal>65537</cert:decimal>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC104">
+    <cert:hex>d7 a0 e9 1e ed dd cc 90 5d 5e cc d1 e4 12 ab 0c 
+5b db e1 18 fa 99 b7 13 2d 91 54 52 f0 b0 9a f5 
+eb c0 09 6c a1 db de ec 32 72 3f 5d dd 2b 05 56 
+4e 2c e6 7e ff ba 8e 86 77 8e 11 4a 02 a3 90 7c 
+2e 6c 6b 28 cf 16 fe e7 7d 0e f0 c4 4d 2e 3c cd 
+3e 0b 6e 8c fd d1 97 e3 aa 86 ec 19 99 80 72 9a 
+f4 45 1f 79 99 bc e5 5e b3 4b d5 a5 35 04 70 46 
+37 00 f7 30 8e 37 2b db 6e 07 5e 0b b8 a8 db a9 
+36 86 fa 4a e5 13 17 a4 43 82 bb 09 d0 92 94 c1 
+68 5b 10 97 ff d5 9c 44 6a e5 67 fa ec e6 b6 aa 
+27 89 79 06 b5 24 a6 49 89 bd 48 cf ea ec 61 d1 
+2c c0 b6 3d db 88 5d 2d ad b0 b3 58 c6 66 aa 93 
+f5 a4 43 fb 91 fc 2a 3d c6 99 eb 46 15 9b 05 c5 
+75 8c 9f 13 ed 28 44 09 4c c5 39 e5 82 e1 1d e3 
+6c 67 33 a6 7b 51 25 ef 40 7b 32 9e f5 e9 22 ca 
+57 46 a5 ff c6 7b 65 0b 4a e3 66 10 fc a0 cd 7b</cert:hex>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC107">
+    <rdf:type rdf:resource="http://blogs.yandex.ru/schema/foaf/Posts"/>
+    <ya:feed rdf:resource="http://danbri.livejournal.com/data/rss"/>
+    <ya:posted>13</ya:posted>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC106">
+    <default4:knows rdf:nodeID="sPtXJAkC116"/>
+    <default4:knows rdf:nodeID="sPtXJAkC115"/>
+    <default4:knows rdf:nodeID="sPtXJAkC114"/>
+    <default4:knows rdf:nodeID="sPtXJAkC111"/>
+    <default4:knows rdf:nodeID="sPtXJAkC112"/>
+    <default4:knows rdf:nodeID="sPtXJAkC117"/>
+    <default4:knows rdf:nodeID="sPtXJAkC113"/>
+    <default4:knows rdf:nodeID="sPtXJAkC118"/>
+    <default4:knows rdf:nodeID="sPtXJAkC108"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <ya:blogActivity rdf:nodeID="sPtXJAkC107"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <default4:img rdf:resource="http://l-userpic.livejournal.com/68202348/1344540"/>
+    <default4:knows rdf:nodeID="sPtXJAkC110"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <default4:page rdf:resource="http://danbri.livejournal.com/profile"/>
+    <default4:knows rdf:nodeID="sPtXJAkC120"/>
+    <default4:knows rdf:nodeID="sPtXJAkC122"/>
+    <ya:city rdf:resource="http://www.livejournal.com/directory.bml"/>
+    <default4:weblog rdf:resource="http://danbri.livejournal.com/"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:knows rdf:nodeID="sPtXJAkC109"/>
+    <default4:knows rdf:nodeID="sPtXJAkC121"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <default4:openid rdf:resource="http://danbri.livejournal.com/"/>
+    <default4:homepage rdf:resource="http://danbri.livejournal.com/data/http%3A%2F%2Fdanbri.org%2F"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <default4:knows rdf:nodeID="sPtXJAkC119"/>
+    <ya:country rdf:resource="http://www.livejournal.com/directory.bml"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <default4:interest rdf:resource="http://www.livejournal.com/interests.bml"/>
+    <default4:jabberID>danbri@jabber.com</default4:jabberID>
+    <default4:name>Dan Brickley</default4:name>
+    <default4:dateOfBirth>1972-01-09</default4:dateOfBirth>
+    <default4:msnChatID>danbri@hotmail.co.uk</default4:msnChatID>
+    <default4:nick>danbri</default4:nick>
+    <default4:aimChatID>danbri2002</default4:aimChatID>
+    <default4:yahooChatID>danbri3</default4:yahooChatID>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC98">
+    <cert:hex>d00c13c94adda4636cdf55b66d4c28dde58fe40059458f7b17683c75f5dc111a6e17eb60e42190aeefc904e6f91dbeb0d0084114df3fa4532d5d439a70fce8d8138712dde3e0faa1f9023cf315dbb3e6227b87f87d9552f721c5418cfa8108f710c5dc96978d6c872343132eb359a33a4bba165044c21d6ccafeddcf3b293d50b68f9f8a971a3ecc7b2a3cdad1ab1bfd66ccf89e34453287a2d097a5a98a21b03e9e2f261ab43fe5521d2f2bd606f3a7293fe763efbb37a06563ebe21beea9ea75eb156caa58997072996aa725508ed215e1fe24bba63410728984898d1950b1e63c8108c37aad4ff98c019651592e6e03c85dd5d4e5e1264c35bf3e66a57b03</cert:hex>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC99">
+    <con:address rdf:nodeID="sPtXJAkC100"/>
+    <default3:location rdf:nodeID="sPtXJAkC101"/>
+    <con:phone rdf:resource="tel:+1-617-253-5702"/>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC91">
+    <rdf:type rdf:resource="http://example.org/terms#Book"/>
+    <default1:title>Dogs in Hats</default1:title>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC92">
+    <eg:property>10</eg:property>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC93">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:name>David McClosky</default4:name>
+    <default4:mbox_sha1sum>1c9699bb667d9ad9595cbaa0467ce677bf225829</default4:mbox_sha1sum>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC94">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <default4:name>Kelsi Perttula</default4:name>
+    <default4:mbox_sha1sum>92fe6a27d1a6d6342da3889b6af429f8f3d229b2</default4:mbox_sha1sum>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC95">
+    <rdf:type rdf:resource="http://www.w3.org/2003/01/geo/wgs84_pos#Point"/>
+    <default3:lat>37.520478</default3:lat>
+    <default3:long>-122.27603</default3:long>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC96">
+    <rsa:modulus rdf:nodeID="sPtXJAkC98"/>
+    <rdf:type rdf:resource="http://www.w3.org/ns/auth/rsa#RSAPublicKey"/>
+    <rsa:public_exponent rdf:nodeID="sPtXJAkC97"/>
+    <cert:identity rdf:resource="http://bigasterisk.com/foaf.rdf#accnt"/>
+  </rdf:Description>
+  <rdf:Description rdf:nodeID="sPtXJAkC97">
+    <cert:decimal>65537</cert:decimal>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.w3.org/People/Berners-Lee/card.rdf">
+    <default4:primaryTopic rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+    <cc:license rdf:resource="http://creativecommons.org/licenses/by-nc/3.0/"/>
+    <default4:maker rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/PersonalProfileDocument"/>
+    <dc:title>Tim Berners-Lee's FOAF file</dc:title>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://bblfish.net/people/henry/card#me">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+    <rdfs:seeAlso rdf:resource="http://bblfish.net/people/henry/card"/>
+    <default4:name>Henry Story</default4:name>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.livejournal.com/directory.bml">
+    <dc:title>Bristol</dc:title>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://www.livejournal.com/interests.bml">
+    <dc:title>xml</dc:title>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://dig.csail.mit.edu/2008/webdav/timbl/foaf.rdf">
+    <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/PersonalProfileDocument"/>
+    <default4:maker rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+    <default4:primaryTopic rdf:resource="http://www.w3.org/People/Berners-Lee/card#i"/>
+    <cc:license rdf:resource="http://creativecommons.org/licenses/by-nc/3.0/"/>
+    <dc:title>Tim Berners-Lee's editable FOAF file</dc:title>
+  </rdf:Description>
+</rdf:RDF>

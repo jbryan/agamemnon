@@ -87,9 +87,11 @@ class DataStore(object):
         #probably need a different delimiter.
         #TODO: fix delimiter
         try:
+            num_columns = self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start='%s__' % rel_type,
+                                     column_finish='%s_`' % rel_type,)
             super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, column_start='%s__' % rel_type,
                                      column_finish='%s_`' % rel_type,
-                                     column_count=count)
+                                     column_count=num_columns)
         except NotFoundException:
             super_columns = {}
         return [self.get_outgoing_relationship(rel_type, source_node, super_column) for super_column in
@@ -105,9 +107,12 @@ class DataStore(object):
         #probably need a different delimiter.
         #TODO: fix delimiter
         try:
+            num_columns = self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start='%s__' % rel_type,
+                                     column_finish='%s_`' % rel_type,)
+
             super_columns = self.get(INBOUND_RELATIONSHIP_CF, target_key, column_start='%s__' % rel_type,
                                      column_finish='%s_`' % rel_type,
-                                     column_count=count)
+                                     column_count=num_columns)
         except NotFoundException:
             super_columns = {}
         return [self.get_incoming_relationship(rel_type, target_node, super_column) for super_column in
@@ -267,6 +272,7 @@ class DataStore(object):
         """
         This needs to update the entry in the type table as well as all of the relationships
         """
+        log.debug("Saving node: {0}: {1}".format(node.type, node.key))
         self.insert(node.type, node.key, self.serialize_columns(node.attributes))
         columns_to_remove = []
         for key in node.old_values:
@@ -278,13 +284,23 @@ class DataStore(object):
         target_key = ENDPOINT_NAME_TEMPLATE % (node.type, node.key)
 
         try:
-            outbound_results = self.get(OUTBOUND_RELATIONSHIP_CF, source_key)
+            next_start_id = None
+            num_columns = self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=next_start_id)
+            outbound_results = self.get(OUTBOUND_RELATIONSHIP_CF, source_key,
+                                        column_start=next_start_id, column_count=num_columns)
         except NotFoundException:
+            log.debug("No outgoing relationships for {0}: {1}".format(node.type, node.key))
             outbound_results = {}
         try:
-            inbound_results = self.get(INBOUND_RELATIONSHIP_CF, target_key)
-        except NotFoundException:
+            next_start_id = None
             inbound_results = {}
+            num_columns = self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start=next_start_id)
+            inbound_results = self.get(INBOUND_RELATIONSHIP_CF, target_key,
+                                       column_start=next_start_id, column_count=num_columns)
+        except NotFoundException:
+            log.debug("No incoming relationships for {0}: {1}".format(node.type, node.key))
+            inbound_results = {}
+
         outbound_columns = {'source__type': node.type.encode('utf-8'), 'source__key': node.key.encode('utf-8')}
         node_attributes = node.attributes
         for attribute_key in node.attributes.keys():
@@ -318,8 +334,6 @@ class DataStore(object):
                 self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
                         columns=['target__%s' % column for column in columns_to_remove])
 
-
-
     def get_node(self, type, key):
         try:
             values = self.get(type, key)
@@ -328,17 +342,11 @@ class DataStore(object):
         return prim.Node(self, type, key, values)
 
     def get_reference_node(self, name='reference'):
-#        """
-#        Nodes returned here are very easily referenced by name and then function as an index for all attached nodes
-#        The most typical use case is to index all of the nodes of a certain type, but the functionality is not limited
-#        to this.
-#        """
-#        try:
-#            node = self.get_node('reference', name)
-#        except NodeNotFoundException:
-#            node = self.create_node('reference', name, {'reference': 'reference'}, reference=True)
-#            self.get_reference_node().instance(node)
-#        return node
+        """
+        Nodes returned here are very easily referenced by name and then function as an index for all attached nodes
+        The most typical use case is to index all of the nodes of a certain type, but the functionality is not limited
+        to this.
+        """
         try:
             ref_node = self.get_node('reference', name)
         except NodeNotFoundException:
