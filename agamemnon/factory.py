@@ -272,67 +272,68 @@ class DataStore(object):
         """
         This needs to update the entry in the type table as well as all of the relationships
         """
-        log.debug("Saving node: {0}: {1}".format(node.type, node.key))
-        self.insert(node.type, node.key, self.serialize_columns(node.attributes))
-        columns_to_remove = []
-        for key in node.old_values:
-            if not key in node.new_values:
-                columns_to_remove.append(key)
-        if len(columns_to_remove) > 0:
-            self.remove(self.get_cf(node.type), node.key, columns=columns_to_remove)
-        source_key = ENDPOINT_NAME_TEMPLATE % (node.type, node.key)
-        target_key = ENDPOINT_NAME_TEMPLATE % (node.type, node.key)
-
-        try:
-            next_start_id = None
-            num_columns = self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=next_start_id)
-            outbound_results = self.get(OUTBOUND_RELATIONSHIP_CF, source_key,
-                                        column_start=next_start_id, column_count=num_columns)
-        except NotFoundException:
-            log.debug("No outgoing relationships for {0}: {1}".format(node.type, node.key))
-            outbound_results = {}
-        try:
-            next_start_id = None
-            inbound_results = {}
-            num_columns = self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start=next_start_id)
-            inbound_results = self.get(INBOUND_RELATIONSHIP_CF, target_key,
-                                       column_start=next_start_id, column_count=num_columns)
-        except NotFoundException:
-            log.debug("No incoming relationships for {0}: {1}".format(node.type, node.key))
-            inbound_results = {}
-
-        outbound_columns = {'source__type': node.type.encode('utf-8'), 'source__key': node.key.encode('utf-8')}
-        node_attributes = node.attributes
-        for attribute_key in node.attributes.keys():
-            outbound_columns['source__%s' % attribute_key] = node_attributes[attribute_key]
-        for key in outbound_results.keys():
-            target = outbound_results[key]
-            target_key = ENDPOINT_NAME_TEMPLATE % (target['target__type'], target['target__key'])
-            target.update(outbound_columns)
-            serialized = self.serialize_columns(target)
-            self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, serialized, key)
-            self.insert(INBOUND_RELATIONSHIP_CF, target_key, serialized, key)
-            if len(columns_to_remove):
-                self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
-                        columns=['source__%s' % column for column in columns_to_remove])
-                self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
-                        columns=['source__%s' % column for column in columns_to_remove])
-        inbound_columns = {'target__type': node.type.encode('utf-8'), 'target__key': node.key.encode('utf-8')}
-        for attribute_key in node.attributes.keys():
-            inbound_columns['target__%s' % attribute_key] = node_attributes[attribute_key]
-        for key in inbound_results.keys():
-            source = inbound_results[key]
-            source_key = ENDPOINT_NAME_TEMPLATE % (source['source__type'], source['source__key'])
+        with self.batch():
+            log.debug("Saving node: {0}: {1}".format(node.type, node.key))
+            self.insert(node.type, node.key, self.serialize_columns(node.attributes))
+            columns_to_remove = []
+            for key in node.old_values:
+                if not key in node.new_values:
+                    columns_to_remove.append(key)
+            if len(columns_to_remove) > 0:
+                self.remove(self.get_cf(node.type), node.key, columns=columns_to_remove)
+            source_key = ENDPOINT_NAME_TEMPLATE % (node.type, node.key)
             target_key = ENDPOINT_NAME_TEMPLATE % (node.type, node.key)
-            source.update(inbound_columns)
-            serialized = self.serialize_columns(source)
-            self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, serialized, key)
-            self.insert(INBOUND_RELATIONSHIP_CF, target_key, serialized, key)
-            if len(columns_to_remove):
-                self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
-                        columns=['target__%s' % column for column in columns_to_remove])
-                self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
-                        columns=['target__%s' % column for column in columns_to_remove])
+
+            try:
+                next_start_id = None
+                num_columns = self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=next_start_id)
+                outbound_results = self.get(OUTBOUND_RELATIONSHIP_CF, source_key,
+                                            column_start=next_start_id, column_count=num_columns)
+            except NotFoundException:
+                log.debug("No outgoing relationships for {0}: {1}".format(node.type, node.key))
+                outbound_results = {}
+            try:
+                next_start_id = None
+                inbound_results = {}
+                num_columns = self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start=next_start_id)
+                inbound_results = self.get(INBOUND_RELATIONSHIP_CF, target_key,
+                                        column_start=next_start_id, column_count=num_columns)
+            except NotFoundException:
+                log.debug("No incoming relationships for {0}: {1}".format(node.type, node.key))
+                inbound_results = {}
+
+            outbound_columns = {'source__type': node.type.encode('utf-8'), 'source__key': node.key.encode('utf-8')}
+            node_attributes = node.attributes
+            for attribute_key in node.attributes.keys():
+                outbound_columns['source__%s' % attribute_key] = node_attributes[attribute_key]
+            for key in outbound_results.keys():
+                target = outbound_results[key]
+                target_key = ENDPOINT_NAME_TEMPLATE % (target['target__type'], target['target__key'])
+                target.update(outbound_columns)
+                serialized = self.serialize_columns(target)
+                self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, serialized, key)
+                self.insert(INBOUND_RELATIONSHIP_CF, target_key, serialized, key)
+                if len(columns_to_remove):
+                    self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
+                            columns=['source__%s' % column for column in columns_to_remove])
+                    self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
+                            columns=['source__%s' % column for column in columns_to_remove])
+            inbound_columns = {'target__type': node.type.encode('utf-8'), 'target__key': node.key.encode('utf-8')}
+            for attribute_key in node.attributes.keys():
+                inbound_columns['target__%s' % attribute_key] = node_attributes[attribute_key]
+            for key in inbound_results.keys():
+                source = inbound_results[key]
+                source_key = ENDPOINT_NAME_TEMPLATE % (source['source__type'], source['source__key'])
+                target_key = ENDPOINT_NAME_TEMPLATE % (node.type, node.key)
+                source.update(inbound_columns)
+                serialized = self.serialize_columns(source)
+                self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, serialized, key)
+                self.insert(INBOUND_RELATIONSHIP_CF, target_key, serialized, key)
+                if len(columns_to_remove):
+                    self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
+                            columns=['target__%s' % column for column in columns_to_remove])
+                    self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
+                            columns=['target__%s' % column for column in columns_to_remove])
 
     def get_node(self, type, key):
         try:
