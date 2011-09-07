@@ -13,6 +13,10 @@ class InMemoryDataStore(object):
         self.batch_count = 0
         self.in_batch = False
 
+    def get_count(self, type, row, columns=None, column_start=None, super_column=None, column_finish=None):
+        return self.get_cf(type).get_count(row, columns=columns, column_start=column_start,
+                                           column_finish=column_finish, super_column=super_column)
+
     def get_cf(self, cf_name):
         if not cf_name in self.tables:
             self.tables[cf_name] = self.create_cf(cf_name)
@@ -73,6 +77,44 @@ class ColumnFamily(object):
         self.name = name
         self.super = super
 
+    def get_count(self, row, columns=None, column_start=None, super_column=None, column_finish=None):
+        try:
+            if columns is None and column_start is None and super_column is None:
+                results = self.data[row]
+            else:
+                if super_column is None:
+                    data_columns = self.data[row]
+                else:
+                    data_columns = self.data[row][super_column]
+                results = {}
+                count = 0
+                if columns is not None:
+                    for c in columns:
+                        results[c] = data_columns[c]
+                else:
+                    for c in data_columns.keys():
+                        if column_start is not None and column_finish is not None:
+                            if ((cmp(c, column_start) > 0
+                                and cmp(c, column_finish) < 0)
+                                or cmp(c, column_finish) == 0
+                                or cmp(c, column_start) == 0):
+
+                                results[c] = data_columns[c]
+                                count += 1
+                        else:
+                            results[c] = data_columns[c]
+                            count += 1
+            if not len(results):
+                raise NotFoundException
+            for key, value in results.items():
+                if isinstance(value, dict) and len(value) == 0:
+                    del(results[key])
+                if value is None:
+                    del(results[key])
+            return len(results)
+        except KeyError:
+            raise NotFoundException
+        
     def get(self, row, columns=None, column_start=None, super_column=None, column_finish=None, column_count=100):
         try:
             if columns is None and column_start is None and super_column is None:

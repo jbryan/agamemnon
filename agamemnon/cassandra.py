@@ -23,6 +23,18 @@ class CassandraDataStore(object):
         if not self.cf_exists(RELATIONSHIP_INDEX):
             self.create_cf(RELATIONSHIP_INDEX, super=True)
 
+    def get_count(self, type, row, columns=None, column_start=None, super_column=None, column_finish=None):
+        args = {}
+        if columns is not None:
+            args['columns'] = columns
+        if column_start is not None:
+            args['column_start'] = column_start
+        if column_finish is not None:
+            args['column_finish'] = column_finish
+        if super_column is not None:
+            args['super_column'] = super_column
+        return self.get_cf(type).get_count(row, **args)
+
     def create_cf(self, type, column_type=system_manager.ASCII_TYPE, super=False, index_columns=list()):
         self._system_manager.create_column_family(self._keyspace, type, super=super, comparator_type=column_type)
         for column in index_columns:
