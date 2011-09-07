@@ -40,11 +40,13 @@ class CassandraDataStore(object):
         for column in index_columns:
             self._system_manager.create_index(self._keyspace, type, column, column_type,
                                               index_name='%s_%s_index' % (type, column))
-        return cf.ColumnFamily(self._pool, type)
+        return cf.ColumnFamily(self._pool, type, autopack_names=False, autopack_values=False)
     
     def cf_exists(self, type):
+        if type in self._cf_cache:
+            return True
         try:
-            cf.ColumnFamily(self._pool, type)
+            cf.ColumnFamily(self._pool, type, autopack_names=False, autopack_values=False)
         except NotFoundException:
             return False
         return True
@@ -52,8 +54,10 @@ class CassandraDataStore(object):
     def get_cf(self, type, create=True):
 
         column_family = None
+        if type in self._cf_cache:
+            return self._cf_cache[type]
         try:
-            column_family = cf.ColumnFamily(self._pool, type)
+            column_family = cf.ColumnFamily(self._pool, type, autopack_names=False, autopack_values=False)
             self._cf_cache[type] = column_family
         except NotFoundException:
             if create:
@@ -77,7 +81,7 @@ class CassandraDataStore(object):
     def start_batch(self):
         if self._batch is None:
             self.in_batch = True
-            self._batch = Mutator(self._pool)
+            self._batch = Mutator(self._pool,0)
         self.batch_count += 1
 
 

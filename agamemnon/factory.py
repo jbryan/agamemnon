@@ -377,16 +377,14 @@ class DataStore(object):
             return date_parse(content)
 
     def serialize_value(self, value):
-        if isinstance(value, bool):
+        if type(value) == bool:
             return '$b%r' % value
-        elif isinstance(value, int):
+        elif type(value) == int:
             return '$i%r' % value
-        elif isinstance(value, long):
+        elif type(value) == long:
             return '$l%r' % value
-        elif isinstance(value, float):
+        elif type(value) == float:
             return '$f%r' % value
-        elif isinstance(value, str):
-            return value
         elif isinstance(value, unicode):
             return value.encode('utf-8')
         elif isinstance(value, dict):
@@ -394,7 +392,7 @@ class DataStore(object):
         elif isinstance(value, datetime.datetime):
             return '$t%s' % value.isoformat()
         else:
-            raise TypeError('Cannot serialize: %s' % type(value))
+            return value
 
     def deserialize_columns(self, columns):
         return dict([(key, self.deserialize_value(value))
