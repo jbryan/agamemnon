@@ -116,10 +116,9 @@ class Relationship(object):
         self.data_store.delete_relationship(self._type, self.key, self._rel_id, self.source_node.type, self.source_node.key,
                                             self.target_node.type, self.target_node.key)
 
-    #TODO: fix this
     def commit(self):
         self.data_store.create_relationship(self.type, self.source_node, self.target_node,
-                                            key=self._rel_id, args=self.new_values)
+                                            key=self.key, args=self.new_values)
 
     def clear(self):
         self.new_values = {}
