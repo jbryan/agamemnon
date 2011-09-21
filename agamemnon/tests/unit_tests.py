@@ -24,7 +24,7 @@ class AgamemnonTests(TestCase):
 
     def set_up_in_memory(self):
         self.ds = load_from_settings({'agamemnon.keyspace': 'memory'})
-    
+
     def create_node(self, node_type, id):
         attributes = {
             'boolean': True,
@@ -104,6 +104,8 @@ class AgamemnonTests(TestCase):
             self.failUnlessEqual(complete_attributes[key], test_attributes[key])
         self.failUnlessEqual(len(complete_attributes), len(test_attributes))
         self.failUnlessEqual(rel.key, rel_to_target.key)
+        self.failUnless(self.ds.get_relationship(rel.type, rel.key) is not None)
+        self.failUnlessEqual(len(complete_attributes), len(self.ds.get_relationship(rel.type, rel.key).attributes))
         in_outbound_relationships = False
         for rel in node.is_related_to.outgoing:
             if rel.target_node.key == target_key:
