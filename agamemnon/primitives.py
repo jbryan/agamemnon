@@ -113,7 +113,7 @@ class Relationship(object):
             del(self.new_values[key])
         
     def delete(self):
-        self.data_store.delete_relationship(self._type, self._rel_id, self.source_node.type, self.source_node.key,
+        self.data_store.delete_relationship(self._type, self.key, self._rel_id, self.source_node.type, self.source_node.key,
                                             self.target_node.type, self.target_node.key)
 
     #TODO: fix this
