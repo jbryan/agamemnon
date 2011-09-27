@@ -233,7 +233,7 @@ class DataStore(object):
                 source_node_key = value
             elif column.startswith('source__'):
                 source_attributes[column[8:]] = value
-        source = prim.Node(self, source_node_type, source_node_key, values)
+        source = prim.Node(self, source_node_type, source_node_key, source_attributes)
         rel_key = RELATIONSHIP_KEY_PATTERN % (rel_type, rel_key)
         return self.get_outgoing_relationship(rel_type, source, (rel_key, values))
 
