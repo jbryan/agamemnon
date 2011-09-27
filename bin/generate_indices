@@ -2,25 +2,20 @@ from ConfigParser import RawConfigParser
 from optparse import OptionParser
 import sys
 import agamemnon
-from agamemnon.graph_constants import RELATIONSHIP_INDEX, ENDPOINT_NAME_TEMPLATE
 
 run_configs = {'verbose':False}
 def index_relationships_for_node(data_store, node):
     for rel in node.relationships.outgoing:
-        source_node = rel.source_node
-        target_node = rel.target_node
-        rel_type = rel.type
-        rel_key = rel.key
-        source_key = ENDPOINT_NAME_TEMPLATE % (source_node.type, source_node.key)
-        target_key = ENDPOINT_NAME_TEMPLATE % (target_node.type, target_node.key)
-        data_store.insert(RELATIONSHIP_INDEX, source_key, {target_node.key: {rel_type: '%s__outgoing' % rel_key}})
-        data_store.insert(RELATIONSHIP_INDEX, target_key, {source_node.key: {rel_type: '%s__incoming' % rel_key}})
+        rel.commit()
         if run_configs['verbose']:
-            print "indexed relationship: %s" % rel_key
+            print "indexed relationship: %s" % rel.rel_key
 
 
 def index_type(data_store, reference_node):
     for rel in reference_node.instance.outgoing:
+        rel.commit()
+        if run_configs['verbose']:
+            print "indexed reference relationship: %s" % rel.rel_key
         index_relationships_for_node(data_store, rel.target_node)
 
 
@@ -64,4 +59,4 @@ def main():
         print "Have a nice day!!!"
 
 if __name__ == "__main__":
-    main()(agamemnon)
+    main()
