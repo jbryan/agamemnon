@@ -3,7 +3,7 @@ from pycassa import system_manager
 import pycassa
 from pycassa.batch import Mutator
 from pycassa.cassandra.ttypes import NotFoundException
-from agamemnon.graph_constants import OUTBOUND_RELATIONSHIP_CF, INBOUND_RELATIONSHIP_CF, RELATIONSHIP_INDEX
+from agamemnon.graph_constants import OUTBOUND_RELATIONSHIP_CF, INBOUND_RELATIONSHIP_CF, RELATIONSHIP_INDEX, RELATIONSHIP_CF
 import pycassa.columnfamily as cf
 
 class CassandraDataStore(object):
@@ -22,6 +22,8 @@ class CassandraDataStore(object):
             self.create_cf(INBOUND_RELATIONSHIP_CF, super=True)
         if not self.cf_exists(RELATIONSHIP_INDEX):
             self.create_cf(RELATIONSHIP_INDEX, super=True)
+        if not self.cf_exists(RELATIONSHIP_CF):
+            self.create_cf(RELATIONSHIP_CF, super=False)
 
     def get_count(self, type, row, columns=None, column_start=None, super_column=None, column_finish=None):
         args = {}

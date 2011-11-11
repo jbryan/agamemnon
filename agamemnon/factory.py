@@ -5,7 +5,7 @@ import uuid
 import datetime
 from dateutil.parser import parse as date_parse
 from pycassa.cassandra.ttypes import NotFoundException
-from agamemnon.graph_constants import RELATIONSHIP_KEY_PATTERN, OUTBOUND_RELATIONSHIP_CF, RELATIONSHIP_INDEX, ENDPOINT_NAME_TEMPLATE, INBOUND_RELATIONSHIP_CF
+from agamemnon.graph_constants import RELATIONSHIP_KEY_PATTERN, OUTBOUND_RELATIONSHIP_CF, RELATIONSHIP_INDEX, ENDPOINT_NAME_TEMPLATE, INBOUND_RELATIONSHIP_CF, RELATIONSHIP_CF
 import pycassa
 from agamemnon.cassandra import CassandraDataStore
 from agamemnon.memory import InMemoryDataStore
@@ -168,7 +168,7 @@ class DataStore(object):
                                  self, rel_type, rel_attributes)
 
 
-    def delete_relationship(self, rel_type, rel_id, from_type, from_key, to_type, to_key):
+    def delete_relationship(self, rel_type, rel_key, rel_id, from_type, from_key, to_type, to_key):
         rel_from_key = ENDPOINT_NAME_TEMPLATE % (from_type, from_key)
         rel_to_key = ENDPOINT_NAME_TEMPLATE % (to_type, to_key)
 
@@ -177,6 +177,7 @@ class DataStore(object):
             self.delete(OUTBOUND_RELATIONSHIP_CF, rel_from_key, super_key=rel_id)
             self.delete(RELATIONSHIP_INDEX, rel_to_key, super_key=from_key, columns=[rel_type])
             self.delete(RELATIONSHIP_INDEX, rel_from_key, super_key=to_key, columns=[rel_type])
+            self.delete(RELATIONSHIP_CF, ENDPOINT_NAME_TEMPLATE % (rel_type, rel_key))
 
     def create_relationship(self, rel_type, source_node, target_node, key=None, args=dict()):
         if key is None:
@@ -204,6 +205,7 @@ class DataStore(object):
             source_key = ENDPOINT_NAME_TEMPLATE % (source_node.type, source_node.key)
             target_key = ENDPOINT_NAME_TEMPLATE % (target_node.type, target_node.key)
             serialized = self.serialize_columns(columns)
+            self.insert(RELATIONSHIP_CF, ENDPOINT_NAME_TEMPLATE % (rel_type, key), serialized)
             self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, {rel_key: serialized})
             self.insert(INBOUND_RELATIONSHIP_CF, target_key, {rel_key: serialized})
 
@@ -214,6 +216,26 @@ class DataStore(object):
 
         #created relationship object
         return prim.Relationship(rel_key, source_node, target_node, self, rel_type, rel_attr)
+
+    def get_relationship(self, rel_type, rel_key):
+        try:
+            values = self.get(RELATIONSHIP_CF, ENDPOINT_NAME_TEMPLATE % (rel_type, rel_key)) 
+        except NotFoundException:
+            raise NodeNotFoundException()
+        source_node_key = None
+        source_node_type = None
+        source_attributes = {}
+        for column in values.keys():
+            value = values[column]
+            if column == 'source__type':
+                source_node_type = value
+            elif column == 'source__key':
+                source_node_key = value
+            elif column.startswith('source__'):
+                source_attributes[column[8:]] = value
+        source = prim.Node(self, source_node_type, source_node_key, source_attributes)
+        rel_key = RELATIONSHIP_KEY_PATTERN % (rel_type, rel_key)
+        return self.get_outgoing_relationship(rel_type, source, (rel_key, values))
 
     def has_relationship(self, node_a, node_b_key, rel_type):
         """
@@ -313,10 +335,13 @@ class DataStore(object):
                 serialized = self.serialize_columns(target)
                 self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, serialized, key)
                 self.insert(INBOUND_RELATIONSHIP_CF, target_key, serialized, key)
+                self.insert(RELATIONSHIP_CF, key, serialized)
                 if len(columns_to_remove):
                     self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
                             columns=['source__%s' % column for column in columns_to_remove])
                     self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
+                            columns=['source__%s' % column for column in columns_to_remove])
+                    self.remove(self.get_cf(RELATIONSHIP_CF), key,
                             columns=['source__%s' % column for column in columns_to_remove])
             inbound_columns = {'target__type': node.type.encode('utf-8'), 'target__key': node.key.encode('utf-8')}
             for attribute_key in node.attributes.keys():
@@ -329,10 +354,13 @@ class DataStore(object):
                 serialized = self.serialize_columns(source)
                 self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, serialized, key)
                 self.insert(INBOUND_RELATIONSHIP_CF, target_key, serialized, key)
+                self.insert(RELATIONSHIP_CF, key, serialized)
                 if len(columns_to_remove):
                     self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
                             columns=['target__%s' % column for column in columns_to_remove])
                     self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
+                            columns=['target__%s' % column for column in columns_to_remove])
+                    self.remove(self.get_cf(RELATIONSHIP_CF), key,
                             columns=['target__%s' % column for column in columns_to_remove])
 
     def get_node(self, type, key):

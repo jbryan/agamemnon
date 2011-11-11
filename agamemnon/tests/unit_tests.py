@@ -24,7 +24,7 @@ class AgamemnonTests(TestCase):
 
     def set_up_in_memory(self):
         self.ds = load_from_settings({'agamemnon.keyspace': 'memory'})
-    
+
     def create_node(self, node_type, id):
         attributes = {
             'boolean': True,
@@ -104,6 +104,8 @@ class AgamemnonTests(TestCase):
             self.failUnlessEqual(complete_attributes[key], test_attributes[key])
         self.failUnlessEqual(len(complete_attributes), len(test_attributes))
         self.failUnlessEqual(rel.key, rel_to_target.key)
+        self.failUnless(self.ds.get_relationship(rel.type, rel.key) is not None)
+        self.failUnlessEqual(len(complete_attributes), len(self.ds.get_relationship(rel.type, rel.key).attributes))
         in_outbound_relationships = False
         for rel in node.is_related_to.outgoing:
             if rel.target_node.key == target_key:
@@ -131,6 +133,7 @@ class AgamemnonTests(TestCase):
             self.failUnlessEqual(20, rel_to_target['int'])
         return node, target_node
 
+
     def delete_relationships(self, source, target):
         source_initial_rel_count = len(source.relationships)
         target_initial_rel_count = len(target.relationships)
@@ -154,6 +157,7 @@ class AgamemnonTests(TestCase):
         """
         self.set_up_cassandra()
         self.one_node_type_one_relationship_type()
+        self.update_relationship_indexes()
 
     def test_in_memory(self):
         """
@@ -161,6 +165,86 @@ class AgamemnonTests(TestCase):
         """
         self.set_up_in_memory()
         self.one_node_type_one_relationship_type()
+        self.update_relationship_indexes()
+
+    def update_relationship_indexes(self):
+        self.ds.create_node("source", "A")
+        self.ds.create_node("target", "B")
+        node_a = self.ds.get_node("source", "A")
+        node_b = self.ds.get_node("target", "B")
+
+        rel = node_a.related(node_b)
+        key = rel.key
+        rel_key = rel.rel_key
+
+        self.assertEqual(len(node_a.related.outgoing), 1)
+        self.assertEqual(len(node_b.related.incoming), 1)
+
+        rel["foo"] = "bar"
+        rel.commit()
+
+        # update targets so we know the denormalized 
+        # indexes are being updated correctly
+        node_a['fuu'] = 'fuu'
+        node_a.commit()
+        node_b['fee'] = 'fee'
+        node_b.commit()
+
+        self.assertEqual(len(node_a.related.outgoing), 1)
+        self.assertEqual(len(node_b.related.incoming), 1)
+        self.assertEqual(rel.key,  key)
+        self.assertEqual(rel.rel_key,  rel_key)
+        self.assertEqual(rel.source_node, node_a)
+        self.assertEqual(rel.source_node.attributes, node_a.attributes)
+        self.assertEqual(rel.target_node, node_b)
+        self.assertEqual(rel.target_node.attributes, node_b.attributes)
+
+        rel = node_a.related.outgoing.single
+
+
+        self.assertEqual(rel['foo'], 'bar')
+        rel["foo"] = "buzz"
+        rel.commit()
+
+        self.assertEqual(len(node_a.related.outgoing), 1)
+        self.assertEqual(len(node_b.related.incoming), 1)
+        self.assertEqual(rel.key,  key)
+        self.assertEqual(rel.rel_key,  rel_key)
+        self.assertEqual(rel.source_node, node_a)
+        self.assertEqual(rel.source_node.attributes, node_a.attributes)
+        self.assertEqual(rel.target_node, node_b)
+        self.assertEqual(rel.target_node.attributes, node_b.attributes)
+
+        node_b.related.incoming.single
+
+        self.assertEqual(rel['foo'], 'buzz')
+        rel["foo"] = "bazz"
+        rel.commit()
+
+        self.assertEqual(len(node_a.related.outgoing), 1)
+        self.assertEqual(len(node_b.related.incoming), 1)
+        self.assertEqual(rel.key,  key)
+        self.assertEqual(rel.rel_key,  rel_key)
+        self.assertEqual(rel.source_node, node_a)
+        self.assertEqual(rel.source_node.attributes, node_a.attributes)
+        self.assertEqual(rel.target_node, node_b)
+        self.assertEqual(rel.target_node.attributes, node_b.attributes)
+
+        rel = self.ds.get_relationship('related', key)
+
+        self.assertEqual(rel['foo'], 'bazz')
+        rel["foo"] = "bizz"
+        rel.commit()
+
+        self.assertEqual(len(node_a.related.outgoing), 1)
+        self.assertEqual(len(node_b.related.incoming), 1)
+        self.assertEqual(rel.key,  key)
+        self.assertEqual(rel.rel_key,  rel_key)
+        self.assertEqual(rel.source_node, node_a)
+        self.assertEqual(rel.source_node.attributes, node_a.attributes)
+        self.assertEqual(rel.target_node, node_b)
+        self.assertEqual(rel.target_node.attributes, node_b.attributes)
+
 
     def one_node_type_one_relationship_type(self):
         """
