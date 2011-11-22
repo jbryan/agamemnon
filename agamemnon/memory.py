@@ -161,7 +161,10 @@ class ColumnFamily(object):
         if self.sort == ASCII:
             sorted_columns = sorted(columns.iteritems(), key=operator.itemgetter(0))
             for column in sorted_columns:
-                self.data[row][column[0]] = column[1]
+                if column[0] not in self.data[row] or not isinstance(column[1], dict):
+                    self.data[row][column[0]] = column[1]
+                else:
+                    self.data[row][column[0]].update(column[1])
 
                 #        if ttl is not None:
                 #            def delete():
