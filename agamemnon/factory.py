@@ -26,28 +26,19 @@ class DataStore(object):
         yield
         self.delegate.commit_batch()
 
-    def get(self, type, row_key, column_start=None, columns=None, column_finish=None, column_count=100,
-            super_column_key=None):
+    def multiget(self, type, row_keys, **kwargs):
         column_family = self.delegate.get_cf(type)
-        args = {}
-        if columns is not None:
-            args['columns'] = columns
-        if super_column_key is not None:
-            args['super_column'] = super_column_key
-        if column_start is not None:
-            args['column_start'] = column_start
-        if column_finish is not None:
-            args['column_finish'] = column_finish
-        args['column_count'] = column_count
+        return [
+            (key, self.deserialize_value(value))
+            for key, value in column_family.multiget(row_keys, **kwargs).items()
+        ]
 
+    def get(self, type, row_key, **kwargs):
+        column_family = self.delegate.get_cf(type)
+        return self.deserialize_value(column_family.get(row_key, **kwargs))
 
-        return self.deserialize_value(column_family.get(row_key, **args))
-
-    def delete(self, type, key, super_key=None, columns=None):
-        if super_key is None:
-            self.delegate.remove(self.get_cf(type), key, columns=columns)
-        else:
-            self.delegate.remove(self.get_cf(type), key, super_column=super_key, columns=columns)
+    def delete(self, type, key, **kwargs):
+        self.delegate.remove(self.get_cf(type), key, **kwargs)
 
     def insert(self, type, key, args, super_key=None):
         if not self.delegate.cf_exists(type):
@@ -173,10 +164,10 @@ class DataStore(object):
         rel_to_key = ENDPOINT_NAME_TEMPLATE % (to_type, to_key)
 
         with self.batch():
-            self.delete(INBOUND_RELATIONSHIP_CF, rel_to_key, super_key=rel_id)
-            self.delete(OUTBOUND_RELATIONSHIP_CF, rel_from_key, super_key=rel_id)
-            self.delete(RELATIONSHIP_INDEX, rel_to_key, super_key=from_key, columns=[rel_type])
-            self.delete(RELATIONSHIP_INDEX, rel_from_key, super_key=to_key, columns=[rel_type])
+            self.delete(INBOUND_RELATIONSHIP_CF, rel_to_key, super_column=rel_id)
+            self.delete(OUTBOUND_RELATIONSHIP_CF, rel_from_key, super_column=rel_id)
+            self.delete(RELATIONSHIP_INDEX, rel_to_key, super_column=from_key, columns=[rel_type])
+            self.delete(RELATIONSHIP_INDEX, rel_from_key, super_column=to_key, columns=[rel_type])
             self.delete(RELATIONSHIP_CF, ENDPOINT_NAME_TEMPLATE % (rel_type, rel_key))
 
     def create_relationship(self, rel_type, source_node, target_node, key=None, args=dict()):
@@ -249,7 +240,7 @@ class DataStore(object):
         node_a_row_key = ENDPOINT_NAME_TEMPLATE % (node_a.type, node_a.key)
         rel_list = []
         try:
-            rels = self.get(RELATIONSHIP_INDEX, node_a_row_key, super_column_key=node_b_key, columns=[rel_type])
+            rels = self.get(RELATIONSHIP_INDEX, node_a_row_key, super_column=node_b_key, columns=[rel_type])
             for rel in rels.values():
                 if rel.endswith('__incoming'):
                     rel_id = string.replace(rel, '__incoming', '')
@@ -307,7 +298,7 @@ class DataStore(object):
             target_key = ENDPOINT_NAME_TEMPLATE % (node.type, node.key)
 
             try:
-                next_start_id = None
+                next_start_id = ""
                 num_columns = self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=next_start_id)
                 outbound_results = self.get(OUTBOUND_RELATIONSHIP_CF, source_key,
                                             column_start=next_start_id, column_count=num_columns)
@@ -315,7 +306,7 @@ class DataStore(object):
                 log.debug("No outgoing relationships for {0}: {1}".format(node.type, node.key))
                 outbound_results = {}
             try:
-                next_start_id = None
+                next_start_id = ""
                 inbound_results = {}
                 num_columns = self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start=next_start_id)
                 inbound_results = self.get(INBOUND_RELATIONSHIP_CF, target_key,
@@ -337,9 +328,9 @@ class DataStore(object):
                 self.insert(INBOUND_RELATIONSHIP_CF, target_key, serialized, key)
                 self.insert(RELATIONSHIP_CF, key, serialized)
                 if len(columns_to_remove):
-                    self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
+                    self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_column=key,
                             columns=['source__%s' % column for column in columns_to_remove])
-                    self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
+                    self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_column=key,
                             columns=['source__%s' % column for column in columns_to_remove])
                     self.remove(self.get_cf(RELATIONSHIP_CF), key,
                             columns=['source__%s' % column for column in columns_to_remove])
@@ -356,9 +347,9 @@ class DataStore(object):
                 self.insert(INBOUND_RELATIONSHIP_CF, target_key, serialized, key)
                 self.insert(RELATIONSHIP_CF, key, serialized)
                 if len(columns_to_remove):
-                    self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_key=key,
+                    self.delete(OUTBOUND_RELATIONSHIP_CF, source_key, super_column=key,
                             columns=['target__%s' % column for column in columns_to_remove])
-                    self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_key=key,
+                    self.delete(INBOUND_RELATIONSHIP_CF, target_key, super_column=key,
                             columns=['target__%s' % column for column in columns_to_remove])
                     self.remove(self.get_cf(RELATIONSHIP_CF), key,
                             columns=['target__%s' % column for column in columns_to_remove])
@@ -369,6 +360,16 @@ class DataStore(object):
         except NotFoundException:
             raise NodeNotFoundException()
         return prim.Node(self, type, key, values)
+
+    def get_nodes(self, type, keys):
+        try:
+            rows = self.multiget(type, keys)
+        except NotFoundException:
+            raise NodeNotFoundException()
+        return [ 
+            prim.Node(self, type, key, values)
+            for key, values in rows
+        ]
 
     def get_reference_node(self, name='reference'):
         """

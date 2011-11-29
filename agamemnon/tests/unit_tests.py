@@ -158,6 +158,7 @@ class AgamemnonTests(TestCase):
         self.set_up_cassandra()
         self.one_node_type_one_relationship_type()
         self.update_relationship_indexes()
+        self.multi_get()
 
     def test_in_memory(self):
         """
@@ -166,6 +167,15 @@ class AgamemnonTests(TestCase):
         self.set_up_in_memory()
         self.one_node_type_one_relationship_type()
         self.update_relationship_indexes()
+        self.multi_get()
+
+    def multi_get(self):
+        for i in range(0, 1000):
+            self.ds.create_node("test", str(i))
+
+        nodes = self.ds.get_nodes("test", [str(i) for i in range(200, 400)])
+        self.assertEqual(len(nodes), 200)
+
 
     def update_relationship_indexes(self):
         self.ds.create_node("source", "A")
