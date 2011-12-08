@@ -114,6 +114,12 @@ class ColumnFamily(object):
             return len(results)
         except KeyError:
             raise NotFoundException
+
+    def multiget(self, row_keys, **kwargs):
+        return dict([
+            (row, self.get(row, **kwargs))
+            for row in row_keys
+        ])
         
     def get(self, row, columns=None, column_start=None, super_column=None, column_finish=None, column_count=100):
         try:
