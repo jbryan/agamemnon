@@ -40,9 +40,12 @@ class CassandraDataStore(object):
     def create_cf(self, type, column_type=system_manager.ASCII_TYPE, super=False, index_columns=list()):
         self._system_manager.create_column_family(self._keyspace, type, super=super, comparator_type=column_type)
         for column in index_columns:
-            self._system_manager.create_index(self._keyspace, type, column, column_type,
-                                              index_name='%s_%s_index' % (type, column))
+            self.create_secondary_index(type, column, column_type)
         return cf.ColumnFamily(self._pool, type, autopack_names=False, autopack_values=False)
+
+    def create_secondary_index(self, type, column, column_type=system_manager.ASCII_TYPE):
+        self._system_manager.create_index(self._keyspace, type, column, column_type,
+                                          index_name='%s_%s_index' % (type, column))
     
     def cf_exists(self, type):
         if type in self._cf_cache:

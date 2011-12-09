@@ -5,26 +5,7 @@ from agamemnon import cassandra
 from agamemnon.factory import load_from_settings
 from agamemnon.primitives import updating_node
 
-in_memory = False
-
-class AgamemnonTests(TestCase):
-
-    def set_up_cassandra(self):
-        host_list = '["localhost:9160"]'
-        keyspace = 'agamemnontests'
-        try:
-            cassandra.drop_keyspace(host_list, keyspace)
-        except Exception:
-            pass
-        cassandra.create_keyspace(host_list, keyspace)
-        self.ds = load_from_settings({
-            'agamemnon.host_list': host_list,
-            "agamemnon.keyspace": keyspace
-        })
-
-    def set_up_in_memory(self):
-        self.ds = load_from_settings({'agamemnon.keyspace': 'memory'})
-
+class AgamemnonTests(object):
     def create_node(self, node_type, id):
         attributes = {
             'boolean': True,
@@ -151,25 +132,7 @@ class AgamemnonTests(TestCase):
         self.failUnlessEqual(target_initial_rel_count - 1, target_post_delete_count)
         return rel
 
-    def test_cassandra(self):
-        """
-        Test the cassandra data store
-        """
-        self.set_up_cassandra()
-        self.one_node_type_one_relationship_type()
-        self.update_relationship_indexes()
-        self.multi_get()
-
-    def test_in_memory(self):
-        """
-        Test the in_memory data store
-        """
-        self.set_up_in_memory()
-        self.one_node_type_one_relationship_type()
-        self.update_relationship_indexes()
-        self.multi_get()
-
-    def multi_get(self):
+    def test_multi_get(self):
         for i in range(0, 1000):
             self.ds.create_node("test", str(i))
 
@@ -177,7 +140,35 @@ class AgamemnonTests(TestCase):
         self.assertEqual(len(nodes), 200)
 
 
-    def update_relationship_indexes(self):
+    def test_indexed_get(self):
+        self.ds.create_cf("indexed")
+        self.ds.create_secondary_index("indexed","color")
+        self.ds.create_secondary_index("indexed","size")
+
+        self.ds.create_node("indexed", "a", { "color": "red", "size": "small" })
+        self.ds.create_node("indexed", "b", { "color": "black", "size": "small" })
+        self.ds.create_node("indexed", "c", { "color": "green", "size": "small" })
+        self.ds.create_node("indexed", "e", { "color": "red", "size": "big" })
+        self.ds.create_node("indexed", "f", { "color": "black", "size": "big" })
+        self.ds.create_node("indexed", "g", { "color": "green", "size": "big" })
+        
+
+        nodes = self.ds.get_nodes_by_attr("indexed", {"color": "red"})
+        self.assertEqual(len(nodes), 2)
+        for node in nodes:
+            self.assertTrue(node.key in ["a","e"])
+
+        nodes = self.ds.get_nodes_by_attr("indexed", {"size": "big"})
+        self.assertEqual(len(nodes), 3)
+        for node in nodes:
+            self.assertTrue(node.key in ["e","f","g"])
+
+        nodes = self.ds.get_nodes_by_attr("indexed", {"size": "big", "color":"red"})
+        self.assertEqual(len(nodes), 1)
+        for node in nodes:
+            self.assertTrue(node.key in ["e"])
+
+    def test_update_relationship_indexes(self):
         self.ds.create_node("source", "A")
         self.ds.create_node("target", "B")
         node_a = self.ds.get_node("source", "A")
@@ -256,7 +247,7 @@ class AgamemnonTests(TestCase):
         self.assertEqual(rel.target_node.attributes, node_b.attributes)
 
 
-    def one_node_type_one_relationship_type(self):
+    def test_one_node_type_one_relationship_type(self):
         """
         Tests for one node type and one relationship type.
         """
@@ -297,3 +288,23 @@ class AgamemnonTests(TestCase):
                 target_incoming_relationships = [rel for rel in target.is_related_to.incoming]
                 self.failIf(source.key in target.is_related_to)
                 self.failIf(deleted_rel in target_incoming_relationships)
+
+
+
+class CassandraTests(TestCase, AgamemnonTests):
+    def setUp(self):
+        host_list = '["localhost:9160"]'
+        keyspace = 'agamemnontests'
+        try:
+            cassandra.drop_keyspace(host_list, keyspace)
+        except Exception:
+            pass
+        cassandra.create_keyspace(host_list, keyspace)
+        self.ds = load_from_settings({
+            'agamemnon.host_list': host_list,
+            "agamemnon.keyspace": keyspace
+        })
+
+class InMemoryTests(TestCase, AgamemnonTests):
+    def setUp(self):
+        self.ds = load_from_settings({'agamemnon.keyspace': 'memory'})

@@ -5,6 +5,7 @@ import uuid
 import datetime
 from dateutil.parser import parse as date_parse
 from pycassa.cassandra.ttypes import NotFoundException
+from pycassa import index
 from agamemnon.graph_constants import RELATIONSHIP_KEY_PATTERN, OUTBOUND_RELATIONSHIP_CF, RELATIONSHIP_INDEX, ENDPOINT_NAME_TEMPLATE, INBOUND_RELATIONSHIP_CF, RELATIONSHIP_CF
 import pycassa
 from agamemnon.cassandra import CassandraDataStore
@@ -370,6 +371,25 @@ class DataStore(object):
             prim.Node(self, type, key, values)
             for key, values in rows
         ]
+
+    def get_nodes_by_attr(self, type, attrs = {}, expressions=None, start_key='', row_count = 2147483647, **kwargs):
+        if expressions is None:
+            expressions = []
+        for attr, value in self.serialize_columns(attrs).items():
+            expressions.append(index.create_index_expression(attr, value))
+
+        clause = index.create_index_clause(expressions, start_key=start_key, count=row_count)
+        try:
+            column_family = self.delegate.get_cf(type)
+            rows = column_family.get_indexed_slices(clause, **kwargs)
+        except NotFoundException:
+            raise NodeNotFoundException()
+        return [
+            prim.Node(self, type, key, values)
+            for key, values in rows
+        ]
+
+        
 
     def get_reference_node(self, name='reference'):
         """
