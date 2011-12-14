@@ -218,17 +218,18 @@ class ColumnFamily(object):
     def get_indexed_slices(self, index_clause):
         for i in self.data.items():
             for expression in index_clause.expressions:
-                column_name = expression.column_name
-                value = expression.value
+                if expression.column_name not in i[1]:
+                    break
+                value = i[1][expression.column_name]
                 comp = {
-                    LT: i[1][column_name].__lt__,
-                    LTE: i[1][column_name].__le__,
-                    EQ: i[1][column_name].__eq__,
-                    GTE: i[1][column_name].__ge__,
-                    GT: i[1][column_name].__gt__,
+                    LT: value.__lt__,
+                    LTE: value.__le__,
+                    EQ: value.__eq__,
+                    GTE: value.__ge__,
+                    GT: value.__gt__,
                 }[expression.op]
 
-                if not comp(value):
+                if not comp(expression.value):
                     # break out of the expression loop and try next data item
                     break
             else:
