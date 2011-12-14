@@ -1,16 +1,9 @@
 import unittest
-import time
-
-from tempfile import mkdtemp
-
-from rdflib.term import URIRef, BNode, Literal
-from rdflib.namespace import RDF, Namespace
+from rdflib.term import URIRef, Literal
+from rdflib.namespace import  Namespace
 from rdflib.graph import Graph
-
 import rdflib.plugin
-
 from agamemnon.rdf_store import AgamemnonStore
-
 import uuid
 
 import logging

@@ -5,6 +5,7 @@ import uuid
 import datetime
 from dateutil.parser import parse as date_parse
 from pycassa.cassandra.ttypes import NotFoundException
+from pycassa import index
 from agamemnon.graph_constants import RELATIONSHIP_KEY_PATTERN, OUTBOUND_RELATIONSHIP_CF, RELATIONSHIP_INDEX, ENDPOINT_NAME_TEMPLATE, INBOUND_RELATIONSHIP_CF, RELATIONSHIP_CF
 import pycassa
 from agamemnon.cassandra import CassandraDataStore
@@ -259,20 +260,26 @@ class DataStore(object):
         return rel_list
 
     def create_node(self, type, key, args=None, reference=False):
-        if args is None:
-            args = {}
-        node = prim.Node(self, type, key, args)
+        try:
+            node = self.get_node(type, key)
+            node.attributes.update(args)
+            self.save_node(node)
+            return node
+        except NodeNotFoundException:
+            if args is None:
+                args = {}
+            node = prim.Node(self, type, key, args)
 
-        #since node won't get created without args, we will include __id by default
-        args["__id"] = key
-        serialized = self.serialize_columns(args)
-        self.insert(type, key, serialized)
-        if not reference:
-            #this adds the created node to the reference node for this type of object
-            #that reference node functions as an index to easily access all nodes of a specific type
-            reference_node = self.get_reference_node(type)
-            reference_node.instance(node, key=key)
-        return node
+            #since node won't get created without args, we will include __id by default
+            args["__id"] = key
+            serialized = self.serialize_columns(args)
+            self.insert(type, key, serialized)
+            if not reference:
+                #this adds the created node to the reference node for this type of object
+                #that reference node functions as an index to easily access all nodes of a specific type
+                reference_node = self.get_reference_node(type)
+                reference_node.instance(node, key=key)
+            return node
 
     def delete_node(self, node):
         relationships = node.relationships
@@ -370,6 +377,25 @@ class DataStore(object):
             prim.Node(self, type, key, values)
             for key, values in rows
         ]
+
+    def get_nodes_by_attr(self, type, attrs = {}, expressions=None, start_key='', row_count = 2147483647, **kwargs):
+        if expressions is None:
+            expressions = []
+        for attr, value in self.serialize_columns(attrs).items():
+            expressions.append(index.create_index_expression(attr, value))
+
+        clause = index.create_index_clause(expressions, start_key=start_key, count=row_count)
+        try:
+            column_family = self.delegate.get_cf(type)
+            rows = column_family.get_indexed_slices(clause, **kwargs)
+        except NotFoundException:
+            raise NodeNotFoundException()
+        return [
+            prim.Node(self, type, key, values)
+            for key, values in rows
+        ]
+
+        
 
     def get_reference_node(self, name='reference'):
         """

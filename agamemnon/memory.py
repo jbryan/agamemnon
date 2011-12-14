@@ -1,6 +1,7 @@
 import operator
 from ordereddict import OrderedDict
 from pycassa.cassandra.ttypes import NotFoundException
+from pycassa.index import LT, LTE, EQ, GTE, GT
 from agamemnon.graph_constants import ASCII
 import logging
 
@@ -25,6 +26,10 @@ class InMemoryDataStore(object):
     def create_cf(self, type, column_type=ASCII, super=False, index_columns=list()):
         self.tables[type] = ColumnFamily(type, column_type)
         return self.tables[type]
+    
+    def create_secondary_index(self, type, column, column_type=None):
+        # DO NOTHING, for now we just do complete scans since memory is "fast enough"
+        pass
 
     def cf_exists(self, type):
         return type in self.tables.keys()
@@ -211,10 +216,23 @@ class ColumnFamily(object):
             raise NotFoundException
 
     def get_indexed_slices(self, index_clause):
-        expression = index_clause.expressions[0]
-        column_name = expression.column_name
-        value = expression.value
         for i in self.data.items():
-            if i[1][column_name] == value:
+            for expression in index_clause.expressions:
+                if expression.column_name not in i[1]:
+                    break
+                value = i[1][expression.column_name]
+                comp = {
+                    LT: value.__lt__,
+                    LTE: value.__le__,
+                    EQ: value.__eq__,
+                    GTE: value.__ge__,
+                    GT: value.__gt__,
+                }[expression.op]
+
+                if not comp(expression.value):
+                    # break out of the expression loop and try next data item
+                    break
+            else:
+                # passed all expressions, this one is good
                 yield i[0], i[1]
   
