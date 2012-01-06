@@ -391,7 +391,7 @@ class DataStore(object):
         except NotFoundException:
             raise NodeNotFoundException()
         return [
-            prim.Node(self, type, key, values)
+            prim.Node(self, type, key, self.deserialize_value(values))
             for key, values in rows
         ]
 

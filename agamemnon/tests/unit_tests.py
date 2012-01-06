@@ -145,28 +145,31 @@ class AgamemnonTests(object):
         self.ds.create_secondary_index("indexed","color")
         self.ds.create_secondary_index("indexed","size")
 
-        self.ds.create_node("indexed", "a", { "color": "red", "size": "small" })
-        self.ds.create_node("indexed", "b", { "color": "black", "size": "small" })
-        self.ds.create_node("indexed", "c", { "color": "green", "size": "small" })
-        self.ds.create_node("indexed", "e", { "color": "red", "size": "big" })
-        self.ds.create_node("indexed", "f", { "color": "black", "size": "big" })
-        self.ds.create_node("indexed", "g", { "color": "green", "size": "big" })
+        self.ds.create_node("indexed", "a", { "color": "red", "size": "small" , "num" : 1.0})
+        self.ds.create_node("indexed", "b", { "color": "black", "size": "small" , "num" : 1.0 })
+        self.ds.create_node("indexed", "c", { "color": "green", "size": "small" , "num" : 1.0 })
+        self.ds.create_node("indexed", "e", { "color": "red", "size": "big" , "num" : 1.0 })
+        self.ds.create_node("indexed", "f", { "color": "black", "size": "big" , "num" : 1.0 })
+        self.ds.create_node("indexed", "g", { "color": "green", "size": "big" , "num" : 1.0 })
         
 
         nodes = self.ds.get_nodes_by_attr("indexed", {"color": "red"})
         self.assertEqual(len(nodes), 2)
         for node in nodes:
             self.assertTrue(node.key in ["a","e"])
+            self.assertEqual(type(node["num"]), type(1.0))
 
         nodes = self.ds.get_nodes_by_attr("indexed", {"size": "big"})
         self.assertEqual(len(nodes), 3)
         for node in nodes:
             self.assertTrue(node.key in ["e","f","g"])
+            self.assertEqual(type(node["num"]), type(1.0))
 
         nodes = self.ds.get_nodes_by_attr("indexed", {"size": "big", "color":"red"})
         self.assertEqual(len(nodes), 1)
         for node in nodes:
             self.assertTrue(node.key in ["e"])
+            self.assertEqual(type(node["num"]), type(1.0))
 
     def test_update_relationship_indexes(self):
         self.ds.create_node("source", "A")
