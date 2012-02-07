@@ -12,6 +12,7 @@ from agamemnon.cassandra import CassandraDataStore
 from agamemnon.memory import InMemoryDataStore
 from agamemnon.exceptions import NodeNotFoundException
 import agamemnon.primitives as prim
+import pyes
 
 import logging
 
@@ -20,6 +21,7 @@ log = logging.getLogger(__name__)
 class DataStore(object):
     def __init__(self, delegate):
         self.delegate = delegate
+        self.conn = ES("33.33.33.10:9200")
 
     @contextmanager
     def batch(self):
@@ -44,6 +46,7 @@ class DataStore(object):
     def insert(self, type, key, args, super_key=None):
         if not self.delegate.cf_exists(type):
             column_family = self.delegate.create_cf(type)
+
         else:
             column_family = self.delegate.get_cf(type)
         serialized = self.serialize_columns(args)
@@ -264,6 +267,7 @@ class DataStore(object):
             node = self.get_node(type, key)
             node.attributes.update(args)
             self.save_node(node)
+            self.modify_node_in_indices(type,node.attributes,node.key)
             return node
         except NodeNotFoundException:
             if args is None:
@@ -274,6 +278,7 @@ class DataStore(object):
             args["__id"] = key
             serialized = self.serialize_columns(args)
             self.insert(type, key, serialized)
+            self.update_indices(type,node.attributes,node.key)
             if not reference:
                 #this adds the created node to the reference node for this type of object
                 #that reference node functions as an index to easily access all nodes of a specific type
@@ -283,6 +288,7 @@ class DataStore(object):
 
     def delete_node(self, node):
         relationships = node.relationships
+        self.remove_node_from_indices(node.type,node.key)
         with self.batch():
            for rel in relationships:
                 rel.delete()
@@ -464,6 +470,114 @@ class DataStore(object):
         if not item in self.__dict__:
             return getattr(self.delegate, item)
 
+    #search takes a node type and an index to use, and performs a query
+    #on the index searching for the query string
+    def search_index(self, type, index_name, query):
+        ns_index_name = str(type) + "_" + index_name
+        q = StringQuery(query)
+        try:
+            results = self.conn.search(query=q, indices=ns_index_name)
+            #TODO: grab all the nodes and return them
+            nodelist = []
+            for r in results['hits']['hits']:
+                key = r['_source']['__id']
+                print key
+                node = self.get_node(type,key)
+                nodelist.append(node)
+                return nodelist
+        except:
+            raise IndexNotFoundException()
+
+    #given a node type and fields to index, and a name for the index
+    #create the mapping and initialize an index corresponding to this mapping
+    #within the connection, and add all existing nodes to the index
+    def create_index(self, type, args, index_name):
+        ns_index_name = str(type) + "_" + index_name
+        self.conn.delete_index_if_exists(ns_index_name)
+        self.conn.create_index(ns_index_name)
+        #create the mapping
+        mapping = {}
+        for arg in args:
+            mapping[arg] = {'boost':1.0,
+                            'index': 'analyzed',
+                            'type': u'string',
+                            'term_vector': 'with_positions_offsets'}
+        self.conn.put_mapping(str(type),{'properties':mapping},[ns_index_name])
+        self.populate_new_index(type, ns_index_name, args)
+
+    #populates a newly created index with documents
+    def populate_new_index(self, type, ns_index_name, args):
+        #add all the currently existing nodes into the index
+        ref_node = self.get_reference_node(type)
+        node_list = sorted([rel.target_node.attributes for rel in ref_node.instance.outgoing])
+        for node in node_list:
+            index_dict = {}
+            node_attributes = node.attributes
+            key = node.key
+            self.populate_index_dict(ns_index_name,index_dict,node_attributes)
+            self.add_node_to_index(type,ns_index_name,index_dict,key)
+
+    #given a type of cf (node), update all the indices of that type with a new node
+    def update_indices(self,type,attributes,key):
+        type_indices = self.get_indices_of_type(type)
+        #add the new document to each of these indices
+        for ns_index_name in type_indices:
+            index_dict = {}
+            self.populate_index_dict(ns_index_name,index_dict,attributes)
+            self.add_node_to_index(type,ns_index_name,index_dict,key)
+
+    def remove_node_from_indices(self, type, key):
+        type_indices = self.get_indices_of_type(type)
+        for ns_index_name in type_indices:
+            self.conn.delete(ns_index_name,type,key)
+            self.conn.refresh([ns_index_name])
+           
+    #find a given node and modify it in all the indices it's in
+    def modify_node_in_indices(self, type, attributes ,key):
+        type_indices = self.get_indices_of_type(type)
+        for ns_index_name in type_indices:
+            index_dict = {}
+            self.populate_index_dict(self,ns_index_name,index_dict,attributes)
+            self.conn.delete(ns_index_name,type,key)
+            self.conn.refresh([ns_index_name])
+            self.add_node_to_index(type,ns_index_name,index_dict,key)
+
+
+    def add_node_to_index(self, type, ns_index_name, index_attributes,key):
+        self.conn.index(index_attributes,str(type),key)
+        self.conn.refresh([ns_index_name])
+
+    def get_indices_of_type(self,type):
+        indices = self.conn.get_indices()
+        type_indices = []
+        for index in indices.keys():
+            if index.startswith(str(type)):
+                type_indices.append(index)
+        return type_indices
+
+    def populate_index_dict(self,ns_index_name,index_dict,attributes):
+        mapping = self.conn.get_mapping(str(type),ns_index_name)
+        args = mapping[ns_index_name]['properties'].keys()
+        for arg in args:
+            index_dict[arg] = attributes[arg]
+            
+    #given an existing index name, add a new field to be indexed
+    def add_field_to_index(self, type, index_name, new_field):
+        ns_index_name = str(type) + "_" + index_name
+        #save the mapping from the index
+        mapping = self.conn.get_mapping(str(type),ns_index_name)
+        mapping[ns_index_name]['properties'][new_field] = {'boost':1.0,
+              'index': 'analyzed',
+              'type': u'string',
+              'term_vector': 'with_positions_offsets'}
+        #then delete the index
+        self.conn.delete_index(ns_index_name)
+        #then recreate the index, adding in the new field
+        self.conn.put_mapping(str(type),mapping[ns_index_name],[ns_index_name])
+        #finally, add in all the new documents as before
+        args = mapping[ns_index_name]['properties'].keys() + [new_field]
+        self.populate_new_index(type,ns_index_name,args)
+
 
 def load_from_settings(settings, prefix='agamemnon.'):
     if settings["%skeyspace" % prefix] == 'memory':
@@ -475,3 +589,4 @@ def load_from_settings(settings, prefix='agamemnon.'):
                                         system_manager=pycassa.system_manager.SystemManager(
                                             json.loads(settings["%shost_list" % prefix])[0]))
     return DataStore(ds_to_wrap)
+
