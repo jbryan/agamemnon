@@ -477,7 +477,6 @@ class DataStore(object):
         q = StringQuery(query)
         try:
             results = self.conn.search(query=q, indices=ns_index_name)
-            #TODO: grab all the nodes and return them
             nodelist = []
             for r in results['hits']['hits']:
                 key = r['_source']['__id']
@@ -486,6 +485,7 @@ class DataStore(object):
                 nodelist.append(node)
                 return nodelist
         except:
+            #TODO: ask about exception here
             raise IndexNotFoundException()
 
     #given a node type and fields to index, and a name for the index
@@ -504,6 +504,10 @@ class DataStore(object):
                             'term_vector': 'with_positions_offsets'}
         self.conn.put_mapping(str(type),{'properties':mapping},[ns_index_name])
         self.populate_new_index(type, ns_index_name, args)
+
+    def delete_index(self,type,index_name):
+        ns_index_name = str(type) + "_" + index_name
+        self.conn.delete_index_if_exists(ns_index_name)
 
     #populates a newly created index with documents
     def populate_new_index(self, type, ns_index_name, args):
@@ -532,7 +536,7 @@ class DataStore(object):
             self.conn.delete(ns_index_name,type,key)
             self.conn.refresh([ns_index_name])
            
-    #find a given node and modify it in all the indices it's in
+    #find a given node and modify it in all the indices it is in
     def modify_node_in_indices(self, type, attributes ,key):
         type_indices = self.get_indices_of_type(type)
         for ns_index_name in type_indices:
