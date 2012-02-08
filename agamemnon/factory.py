@@ -56,7 +56,7 @@ class DataStore(object):
         column_start = '%s__' % relationship_type
         source_key = RELATIONSHIP_KEY_PATTERN % (source_node.type, source_node.key)
         try:
-            self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=column_start,
+            return self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=column_start,
                                      column_finish='%s_`' % relationship_type)
         except NotFoundException:
             return 0
@@ -65,7 +65,7 @@ class DataStore(object):
         column_start = '%s__' % relationship_type
         target_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
         try:
-            self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start=column_start,
+            return self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start=column_start,
                                      column_finish='%s_`' % relationship_type)
         except NotFoundException:
             return 0
@@ -83,16 +83,16 @@ class DataStore(object):
         try:
             column_start = None
             while True:
-                args = {'column_count': 101}
+                args = {'column_count': count}
                 if column_start is not None:
                     args['column_start'] = column_start
                 super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, **args)
-                if len(super_columns) == 101:
+                if len(super_columns) == count:
                     column_start = super_columns.items()[-1][0]
                     del(super_columns[column_start])
                 for super_column in super_columns.items():
                     yield self.get_outgoing_relationship(super_column[1]['rel_type'], source_node, super_column)
-                if len(super_columns) < 101:
+                if len(super_columns) < count:
                     return
         except NotFoundException:
             return
@@ -102,16 +102,16 @@ class DataStore(object):
         try:
             column_start = None
             while True:
-                args = {'column_count': 101}
+                args = {'column_count': count}
                 if column_start is not None:
                     args['column_start'] = column_start
                 super_columns = self.get(INBOUND_RELATIONSHIP_CF, target_key, **args)
-                if len(super_columns) == 101:
+                if len(super_columns) == count:
                     column_start = super_columns.items()[-1][0]
                     del(super_columns[column_start])
                 for super_column in super_columns.items():
                     yield self.get_incoming_relationship(super_column[1]['rel_type'], target_node, super_column)
-                if len(super_columns) < 101:
+                if len(super_columns) < count:
                     return
         except NotFoundException:
             return
@@ -128,13 +128,13 @@ class DataStore(object):
             column_start = '%s__' % rel_type
             while True:
                 super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=column_start,
-                                     column_finish='%s_`' % rel_type, column_count=101)
-                if len(super_columns) == 101:
+                                     column_finish='%s_`' % rel_type, column_count=count)
+                if len(super_columns) == count:
                     column_start = super_columns.items()[-1][0]
                     del(super_columns[column_start])
                 for super_column in super_columns.items():
                     yield self.get_outgoing_relationship(rel_type, source_node, super_column)
-                if len(super_columns) < 101:
+                if len(super_columns) < count:
                     return
         except NotFoundException:
             return
@@ -152,13 +152,13 @@ class DataStore(object):
             column_start = '%s__' % rel_type
             while True:
                 super_columns = self.get(INBOUND_RELATIONSHIP_CF, target_key, column_start=column_start,
-                                     column_finish='%s_`' % rel_type, column_count=101)
-                if len(super_columns) == 101:
+                                     column_finish='%s_`' % rel_type, column_count=count)
+                if len(super_columns) == count:
                     column_start = super_columns.items()[-1][0]
                     del(super_columns[column_start])
                 for super_column in super_columns.items():
                     yield self.get_incoming_relationship(rel_type, target_node, super_column)
-                if len(super_columns) < 101:
+                if len(super_columns) < count:
                     return
         except NotFoundException:
             return
