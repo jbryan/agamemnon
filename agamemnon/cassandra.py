@@ -74,8 +74,9 @@ class CassandraDataStore(object):
     def insert(self, column_family, key, columns):
         if self._batch is not None:
             self._batch.insert(column_family, key, columns)
-        with Mutator(self._pool) as b:
-            b.insert(column_family, key, columns)
+        else:
+            with Mutator(self._pool) as b:
+                b.insert(column_family, key, columns)
 
     def remove(self,column_family, key, columns=None, super_column=None):
         if self._batch is not None:
@@ -83,10 +84,10 @@ class CassandraDataStore(object):
         else:
             column_family.remove(key, columns=columns, super_column=super_column)
 
-    def start_batch(self):
+    def start_batch(self, queue_size = 0):
         if self._batch is None:
             self.in_batch = True
-            self._batch = Mutator(self._pool,0)
+            self._batch = Mutator(self._pool,queue_size)
         self.batch_count += 1
 
 
