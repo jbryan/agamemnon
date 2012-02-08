@@ -22,8 +22,8 @@ class DataStore(object):
         self.delegate = delegate
 
     @contextmanager
-    def batch(self):
-        self.delegate.start_batch()
+    def batch(self, queue_size = 0):
+        self.delegate.start_batch(queue_size = queue_size)
         yield
         self.delegate.commit_batch()
 
@@ -48,9 +48,9 @@ class DataStore(object):
             column_family = self.delegate.get_cf(type)
         serialized = self.serialize_columns(args)
         if super_key is None:
-            column_family.insert(key, serialized)
+            self.delegate.insert(column_family, key, serialized)
         else:
-            column_family.insert(key, {super_key: serialized})
+            self.delegate.insert(column_family, key, {super_key: serialized})
 
     def get_all_outgoing_relationships(self, source_node, count=100):
         source_key = RELATIONSHIP_KEY_PATTERN % (source_node.type, source_node.key)
@@ -237,7 +237,6 @@ class DataStore(object):
         > node_a =
 
         """
-        index = self.delegate.get_cf(RELATIONSHIP_INDEX)
         node_a_row_key = ENDPOINT_NAME_TEMPLATE % (node_a.type, node_a.key)
         rel_list = []
         try:

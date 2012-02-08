@@ -10,7 +10,7 @@ log = logging.getLogger()
 class InMemoryDataStore(object):
     def __init__(self):
         self.tables = {}
-        self.transactions = {}
+        self.transactions = []
         self.batch_count = 0
         self.in_batch = False
 
@@ -39,7 +39,7 @@ class InMemoryDataStore(object):
             cf.insert(row, columns)
 
         if self.in_batch:
-            self.transactions[('insert', cf.name, row, tuple(columns.keys()))] = execute
+            self.transactions.append(execute)
         else:
             execute()
 
@@ -48,30 +48,20 @@ class InMemoryDataStore(object):
             cf.remove(row, columns=columns, super_column=super_column)
             
         if self.in_batch:
-            if columns is not None and super_column is not None\
-            and not ('remove', cf.name, row, super_column) in self.transactions.keys():
-                key = ('remove', cf.name, row, tuple(columns), super_column)
-            elif columns is not None and not ('remove', cf.name, row) in self.transactions.keys():
-                key = ('remove', cf.name, row, tuple(columns))
-            elif super_column is not None:
-                key = ('remove', cf.name, row, super_column)
-            else:
-                key = ('remove', cf.name, row)
-            if not key in self.transactions.keys() and not ('remove', cf.name, row) in self.transactions.keys():
-                self.transactions[key] = execute
+            self.transactions.append(execute)
         else:
             execute()
 
-    def start_batch(self):
+    def start_batch(self, queue_size = 0):
         self.in_batch = True
         self.batch_count += 1
 
     def commit_batch(self):
         self.batch_count -= 1
         if not self.batch_count:
-            for key, value in self.transactions.items():
-                value()
-            self.transactions.clear()
+            for item in self.transactions:
+                item()
+            self.transactions = []
             self.in_batch = False
 
 
