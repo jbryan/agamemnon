@@ -259,14 +259,14 @@ class DataStore(object):
         return rel_list
 
     def create_node(self, type, key, args=None, reference=False):
+        if args is None:
+            args = {}
         try:
             node = self.get_node(type, key)
             node.attributes.update(args)
             self.save_node(node)
             return node
         except NodeNotFoundException:
-            if args is None:
-                args = {}
             node = prim.Node(self, type, key, args)
 
             #since node won't get created without args, we will include __id by default
