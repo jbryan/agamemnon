@@ -460,7 +460,7 @@ class GraphMemoryTestCase(unittest.TestCase):
         #additional examples for the fun of it
         self.graph1.parse("http://bigasterisk.com/foaf.rdf")
         self.graph1.parse("http://www.w3.org/People/Berners-Lee/card.rdf")
-        self.graph1.parse("http://danbri.livejournal.com/data/foaf") 
+        #self.graph1.parse("http://danbri.livejournal.com/data/foaf") 
 
         self.graph1.serialize("serialized.rdf")
 
