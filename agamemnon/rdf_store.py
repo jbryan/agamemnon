@@ -1,5 +1,5 @@
 
-from rdflib.store import Store, NO_STORE, VALID_STORE
+from rdflib.store import Store, VALID_STORE
 from rdflib.plugin import register
 from rdflib.term import URIRef, Literal, BNode, Statement
 from rdflib.namespace import Namespace, split_uri
@@ -40,9 +40,17 @@ class AgamemnonStore(Store):
 
         self.configuration = configuration or dict()
 
+        self.node_caching = False
+        self.delayed_commit = False
+
+
         if data_store:
             self.data_store = data_store
 
+    def flush_cache(self):
+        for node in self.node_cache.values():
+            node.commit()
+        self.node_cache.clear()
 
 
     def open(self, configuration=None, create=False, repl_factor = 1):
@@ -73,6 +81,7 @@ class AgamemnonStore(Store):
     def data_store(self, ds):
         self._ds = ds
         self._process_config()
+        self.node_cache = {}
 
     @property
     def ignore_reference_nodes(self):
@@ -124,7 +133,8 @@ class AgamemnonStore(Store):
         if isinstance(object, Literal):
             log.debug("Setting %r on %s" % (p_rel_type, s_node))
             s_node[p_rel_type] = object.toPython()
-            s_node.commit()
+            if not (self.delayed_commit and self.node_caching):
+                s_node.commit()
         else:
             o_node = self.ident_to_node(object, True)
 
@@ -363,12 +373,20 @@ class AgamemnonStore(Store):
     def ident_to_node(self, identifier, create=False):
         node_type, node_id = self.ident_to_node_def(identifier)
 
+        if self.node_caching and identifier in self.node_cache:
+            return self.node_cache[identifier]
+
         try:
             log.debug("Looking up node: %s => %s" % (node_type,node_id))
-            return self.data_store.get_node(node_type, node_id)
+            node = self.data_store.get_node(node_type, node_id)
+            if self.node_caching:
+                self.node_cache[identifier] = node
+            return node
         except NodeNotFoundException:
             if create:
                 node = self.data_store.create_node(node_type, node_id)
+                if self.node_caching:
+                    self.node_cache[identifier] = node
                 log.debug("Created node: %s" % node)
             else:
                 raise
