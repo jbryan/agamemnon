@@ -378,10 +378,10 @@ class AgamemnonStore(Store):
 
         if create:
             node = self.data_store.create_node(node_type, node_id)
-            log.debug("Looking up node: %s => %s" % (node_type,node_id))
+            log.debug("Created node: %s" % node)
         else:
             node = self.data_store.get_node(node_type, node_id)
-            log.debug("Created node: %s" % node)
+            log.debug("Looking up node: %s => %s" % (node_type,node_id))
 
         if self.node_caching:
             self.node_cache[identifier] = node

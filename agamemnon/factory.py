@@ -318,12 +318,11 @@ class DataStore(object):
             self.save_node(node)
             return node
         except NodeNotFoundException:
-            node = prim.Node(self, type, key, args)
-
             #since node won't get created without args, we will include __id by default
             args["__id"] = key
             serialized = self.serialize_columns(args)
             self.insert(type, key, serialized)
+            node = prim.Node(self, type, key, args)
             if not reference:
                 #this adds the created node to the reference node for this type of object
                 #that reference node functions as an index to easily access all nodes of a specific type
