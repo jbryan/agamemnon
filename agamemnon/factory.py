@@ -79,43 +79,43 @@ class DataStore(object):
         target_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
         return self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key)
 
-    def get_all_outgoing_relationships(self, source_node, count=100):
+    def get_all_outgoing_relationships(self, source_node, column_count=500):
         source_key = RELATIONSHIP_KEY_PATTERN % (source_node.type, source_node.key)
         try:
             column_start = None
             while True:
-                args = {'column_count': count}
+                args = {'column_count': column_count}
                 if column_start is not None:
                     args['column_start'] = column_start
                 super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, **args)
                 for super_column in super_columns.items():
                     if super_column[0] == column_start: continue
                     yield self.get_outgoing_relationship(super_column[1]['rel_type'], source_node, super_column)
-                if len(super_columns) < count:
+                if len(super_columns) < column_count:
                     return
                 column_start = super_columns.items()[-1][0]
         except NotFoundException:
             return
 
-    def get_all_incoming_relationships(self, target_node, count=100):
+    def get_all_incoming_relationships(self, target_node, column_count=500):
         target_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
         try:
             column_start = None
             while True:
-                args = {'column_count': count}
+                args = {'column_count': column_count}
                 if column_start is not None:
                     args['column_start'] = column_start
                 super_columns = self.get(INBOUND_RELATIONSHIP_CF, target_key, **args)
                 for super_column in super_columns.items():
                     if super_column[0] == column_start: continue
                     yield self.get_incoming_relationship(super_column[1]['rel_type'], target_node, super_column)
-                if len(super_columns) < count:
+                if len(super_columns) < column_count:
                     return
                 column_start = super_columns.items()[-1][0]
         except NotFoundException:
             return
         
-    def get_outgoing_relationships(self, source_node, rel_type, count=100):
+    def get_outgoing_relationships(self, source_node, rel_type, count=500):
         source_key = RELATIONSHIP_KEY_PATTERN % (source_node.type, source_node.key)
         #Ok, this is weird.  So in order to get a column slice, you need to provide a start that is <= your first column
         #id, and a finish which is >= your last column.  Since our columns are sorted by ascii, this means we need to go
@@ -138,7 +138,7 @@ class DataStore(object):
             return
 
 
-    def get_incoming_relationships(self, target_node, rel_type, count=100):
+    def get_incoming_relationships(self, target_node, rel_type, count=500):
         target_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
         #Ok, this is weird.  So in order to get a column slice, you need to provide a start that is <= your first column
         #id, and a finish which is >= your last column.  Since our columns are sorted by ascii, this means we need to go

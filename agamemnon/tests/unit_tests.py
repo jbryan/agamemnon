@@ -342,6 +342,6 @@ class CassandraTests(TestCase, AgamemnonTests):
             "agamemnon.keyspace": keyspace
         })
 
-#class InMemoryTests(TestCase, AgamemnonTests):
-    #def setUp(self):
-        #self.ds = load_from_settings({'agamemnon.keyspace': 'memory'})
+class InMemoryTests(TestCase, AgamemnonTests):
+    def setUp(self):
+        self.ds = load_from_settings({'agamemnon.keyspace': 'memory'})

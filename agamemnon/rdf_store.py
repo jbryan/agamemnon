@@ -115,7 +115,7 @@ class AgamemnonStore(Store):
                 setattr(self, key[len(config_prefix):], value)
 
     def add(self, (subject, predicate, object), context, quoted=False):
-        log.info("Adding  %r, %r, %r" % (subject, predicate, object))
+        log.debug("Adding  %r, %r, %r" % (subject, predicate, object))
         if isinstance(subject, Literal):
             raise TypeError("Subject can't be literal")
 
