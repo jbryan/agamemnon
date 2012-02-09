@@ -5,6 +5,7 @@ import uuid
 import datetime
 from dateutil.parser import parse as date_parse
 from pycassa.cassandra.ttypes import NotFoundException
+from pycassa.util import OrderedDict
 from pycassa import index
 from agamemnon.graph_constants import RELATIONSHIP_KEY_PATTERN, OUTBOUND_RELATIONSHIP_CF, RELATIONSHIP_INDEX, ENDPOINT_NAME_TEMPLATE, INBOUND_RELATIONSHIP_CF, RELATIONSHIP_CF
 import pycassa
@@ -87,13 +88,12 @@ class DataStore(object):
                 if column_start is not None:
                     args['column_start'] = column_start
                 super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, **args)
-                if len(super_columns) == count:
-                    column_start = super_columns.items()[-1][0]
-                    del(super_columns[column_start])
                 for super_column in super_columns.items():
+                    if super_column[0] == column_start: continue
                     yield self.get_outgoing_relationship(super_column[1]['rel_type'], source_node, super_column)
                 if len(super_columns) < count:
                     return
+                column_start = super_columns.items()[-1][0]
         except NotFoundException:
             return
 
@@ -106,13 +106,12 @@ class DataStore(object):
                 if column_start is not None:
                     args['column_start'] = column_start
                 super_columns = self.get(INBOUND_RELATIONSHIP_CF, target_key, **args)
-                if len(super_columns) == count:
-                    column_start = super_columns.items()[-1][0]
-                    del(super_columns[column_start])
                 for super_column in super_columns.items():
+                    if super_column[0] == column_start: continue
                     yield self.get_incoming_relationship(super_column[1]['rel_type'], target_node, super_column)
                 if len(super_columns) < count:
                     return
+                column_start = super_columns.items()[-1][0]
         except NotFoundException:
             return
         
@@ -129,13 +128,12 @@ class DataStore(object):
             while True:
                 super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=column_start,
                                      column_finish='%s_`' % rel_type, column_count=count)
-                if len(super_columns) == count:
-                    column_start = super_columns.items()[-1][0]
-                    del(super_columns[column_start])
                 for super_column in super_columns.items():
+                    if super_column[0] == column_start: continue
                     yield self.get_outgoing_relationship(rel_type, source_node, super_column)
                 if len(super_columns) < count:
                     return
+                column_start = super_columns.items()[-1][0]
         except NotFoundException:
             return
 
@@ -153,13 +151,12 @@ class DataStore(object):
             while True:
                 super_columns = self.get(INBOUND_RELATIONSHIP_CF, target_key, column_start=column_start,
                                      column_finish='%s_`' % rel_type, column_count=count)
-                if len(super_columns) == count:
-                    column_start = super_columns.items()[-1][0]
-                    del(super_columns[column_start])
                 for super_column in super_columns.items():
+                    if super_column[0] == column_start: continue
                     yield self.get_incoming_relationship(rel_type, target_node, super_column)
                 if len(super_columns) < count:
                     return
+                column_start = super_columns.items()[-1][0]
         except NotFoundException:
             return
 
@@ -504,12 +501,12 @@ class DataStore(object):
             return value
 
     def deserialize_columns(self, columns):
-        return dict([(key, self.deserialize_value(value))
+        return OrderedDict([(key, self.deserialize_value(value))
         for key, value in columns.items()
         if value is not None])
 
     def serialize_columns(self, columns):
-        return dict([(key, self.serialize_value(value))
+        return OrderedDict([(key, self.serialize_value(value))
         for key, value in columns.items()
         if value is not None])
 
