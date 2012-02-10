@@ -5,5 +5,3 @@ class NoTransactionError(Exception):
 class NodeNotFoundException(Exception):
     pass
 
-class IndexNotFoundException(Exception):
-    pass

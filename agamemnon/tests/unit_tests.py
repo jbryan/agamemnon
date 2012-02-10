@@ -22,30 +22,28 @@ class AgamemnonTests(object):
         self.failUnlessEqual(node_type, node.type)
         return key, attributes
 
-    def test_index(self,node_type):
-        index_name = "test_index"
+    def index_tests(self,node_type):
+        index_name = "test_indexing"
+        self.ds.conn.delete_index_if_exists(index_name)
         args = ['integer','long','float','string']
         [key1,atr1] = self.create_node(node_type,1)
+        #first we test manual creation to ensure all the stuff works
+        #then we test the wrapper functions for the manual process
         self.ds.create_index(node_type,args,index_name)
         #test to see if the index exists
-        self.failUnless(index_name in self.ds.conn.get_indices())
+        ns_index_name = node_type + "_" + index_name
+        self.failUnless(ns_index_name in self.ds.conn.get_indices())
         #test to see if search function works (also populate_indices)
         node1 = self.ds.get_node(node_type,key1)
         nodes_found = self.ds.search_index(node_type,index_name,key1)
         self.failUnless(node1 in nodes_found)
         self.failUnlessEqual(1,len(nodes_found))
-        nodes_found = self.ds.search_index(node_type,index_name,'node')
-        self.failUnless(node1 in nodes_found)
-        self.failUnlessEqual(1,len(nodes_found))
-        nodes_found = self.ds.search_index(node_type,index_name,'1.5434')
-        self.failUnless(node1 in nodes_found)
-        self.failUnlessEqual(1,len(nodes_found))
-        nodes_found = self.ds.search_index(node_type,index_name,'1')
+        nodes_found = self.ds.search_index(node_type,index_name,'1000')
         self.failUnless(node1 in nodes_found)
         self.failUnlessEqual(1,len(nodes_found))
         #test get_indices_of_type function
         type_indices = self.ds.get_indices_of_type(node_type)
-        self.failUnless(index_name in type_indices)
+        self.failUnless(ns_index_name in type_indices)
         self.failUnlessEqual(1,len(type_indices))
         #test update_indices function
         [key2,atr2] = self.create_node(node_type,2)
@@ -53,7 +51,7 @@ class AgamemnonTests(object):
         nodes_found = self.ds.search_index(node_type,index_name,key2)
         self.failUnless(node2 in nodes_found)
         self.failUnlessEqual(1,len(nodes_found))
-        nodes_found = self.ds.search_index(node_type,index_name,'node')
+        nodes_found = self.ds.search_index(node_type,index_name,'1000')
         self.failUnless(node1 in nodes_found)
         self.failUnless(node2 in nodes_found)
         self.failUnlessEqual(2,len(nodes_found))
