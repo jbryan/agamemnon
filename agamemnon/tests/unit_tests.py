@@ -293,6 +293,40 @@ class AgamemnonTests(object):
                 self.failIf(deleted_rel in target_incoming_relationships)
 
 
+    def test_large_relationship_sets(self):
+        num = 1002
+        node_type = "type_a"
+
+        root = self.ds.create_node('root', 'root')
+        node_list = [
+            self.ds.create_node(node_type, str(i))
+            for i in xrange(num)
+        ]
+
+
+        for node in node_list:
+            node.into(root)
+            root.outof(node)
+
+        self.assertEqual(1, len(root.instance.incoming))
+
+        self.assertEqual(num, len([rel for rel in root.outof.outgoing]))
+        self.assertEqual(num, len([rel for rel in root.into.incoming]))
+        self.assertEqual(num, len(root.outof.outgoing))
+        self.assertEqual(num, len(root.into.incoming))
+
+        self.assertEqual(num, len([rel for rel in root.outof]))
+        self.assertEqual(num, len([rel for rel in root.into]))
+        self.assertEqual(num, len(root.outof))
+        self.assertEqual(num, len(root.into))
+
+        self.assertEqual(num, len([rel for rel in root.relationships.outgoing]))
+        self.assertEqual(num + 1, len([rel for rel in root.relationships.incoming]))
+        self.assertEqual(num, len(root.relationships.outgoing))
+        self.assertEqual(num + 1, len(root.relationships.incoming))
+
+        self.assertEqual(2*num + 1, len([rel for rel in root.relationships]))
+        self.assertEqual(2*num + 1, len(root.relationships))
 
 class CassandraTests(TestCase, AgamemnonTests):
     def setUp(self):

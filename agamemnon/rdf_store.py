@@ -376,21 +376,16 @@ class AgamemnonStore(Store):
         if self.node_caching and identifier in self.node_cache:
             return self.node_cache[identifier]
 
-        try:
-            log.debug("Looking up node: %s => %s" % (node_type,node_id))
+        if create:
+            node = self.data_store.create_node(node_type, node_id)
+            log.debug("Created node: %s" % node)
+        else:
             node = self.data_store.get_node(node_type, node_id)
-            if self.node_caching:
-                self.node_cache[identifier] = node
-            return node
-        except NodeNotFoundException:
-            if create:
-                node = self.data_store.create_node(node_type, node_id)
-                if self.node_caching:
-                    self.node_cache[identifier] = node
-                log.debug("Created node: %s" % node)
-            else:
-                raise
-            return node
+            log.debug("Looking up node: %s => %s" % (node_type,node_id))
+
+        if self.node_caching:
+            self.node_cache[identifier] = node
+        return node
 
     def ident_to_node_def(self, identifier):
         if isinstance(identifier,URIRef): 

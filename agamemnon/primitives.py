@@ -13,6 +13,7 @@
 # limitations under the License.
 from contextlib import contextmanager
 from UserDict import DictMixin
+from functools import partial
 
 from pycassa.cassandra.ttypes import NotFoundException
 
@@ -140,22 +141,20 @@ class Relationship(object):
 
 
 class RelationshipList(object):
-    def __init__(self, relationships):
-        self._relationships = relationships
+    def __init__(self, lengthfunc, iterfunc):
+        self._lengthfunc = lengthfunc
+        self._iterfunc = iterfunc
 
     @property
     def single(self):
-        if len(self._relationships) > 0:
-            return self._relationships[0]
-        else:
-            return None
+        for rel in self:
+            return rel
 
     def __len__(self):
-        return len(self._relationships)
+        return self._lengthfunc()
 
     def __iter__(self):
-        for rel in self._relationships:
-            yield rel
+        return self._iterfunc()
 
 
 class RelationshipFactory(object):
@@ -188,19 +187,15 @@ class RelationshipFactory(object):
     def relationships_with(self, node_key):
         return self._data_store.has_relationship(self._parent_node, node_key, self._rel_type)
 
-    def get_outgoing(self, count):
-        try:
-            rels = self._data_store.get_outgoing_relationships(self._parent_node, self._rel_type, count=count)
-        except NotFoundException:
-            rels = []
-        return RelationshipList(rels)
+    def get_outgoing(self, count=100):
+        lengthfunc = partial(self._data_store.get_outgoing_relationship_count, self._parent_node, self._rel_type)
+        iterfunc = partial(self._data_store.get_outgoing_relationships, self._parent_node, self._rel_type, count=count)
+        return RelationshipList(lengthfunc, iterfunc)
 
-    def get_incoming(self, count):
-        try:
-            rels = self._data_store.get_incoming_relationships(self._parent_node, self._rel_type, count=count)
-        except NotFoundException:
-            rels = []
-        return RelationshipList(rels)
+    def get_incoming(self, count=100):
+        lengthfunc = partial(self._data_store.get_incoming_relationship_count, self._parent_node, self._rel_type)
+        iterfunc = partial(self._data_store.get_incoming_relationships, self._parent_node, self._rel_type, count=count)
+        return RelationshipList(lengthfunc, iterfunc)
 
     @property
     def parent_node(self):
@@ -208,20 +203,11 @@ class RelationshipFactory(object):
 
     @property
     def outgoing(self):
-        try:
-            rels = self._data_store.get_outgoing_relationships(self._parent_node, self._rel_type)
-        except NotFoundException:
-            rels = []
-        return RelationshipList(rels)
+        return self.get_outgoing()
 
     @property
     def incoming(self):
-        try:
-            rels = self._data_store.get_incoming_relationships(self._parent_node, self._rel_type)
-        except NotFoundException:
-            rels = []
-        return RelationshipList(rels)
-
+        return self.get_incoming()
 
     def __len__(self):
         return len(self.outgoing) + len(self.incoming)
@@ -262,22 +248,25 @@ class Node(object):
 
             @property
             def outgoing(self):
-                return self._data_store.get_all_outgoing_relationships(self._node, DEFAULT_COLUMN_COUNT)
+                countfunc = partial(self._data_store.get_all_outgoing_relationship_count,self._node)
+                iterfunc = partial(self._data_store.get_all_outgoing_relationships, self._node, DEFAULT_COLUMN_COUNT)
+                return RelationshipList(countfunc, iterfunc)
 
             @property
             def incoming(self):
-                return self._data_store.get_all_incoming_relationships(self._node, DEFAULT_COLUMN_COUNT)
+                countfunc = partial(self._data_store.get_all_incoming_relationship_count, self._node)
+                iterfunc = partial(self._data_store.get_all_incoming_relationships, self._node, DEFAULT_COLUMN_COUNT)
+                return RelationshipList(countfunc, iterfunc)
 
             def __len__(self):
-                return len(self.outgoing) + len(self.incoming)
+                return len(self.incoming) + len(self.outgoing)
 
             def __iter__(self):
-                rels = []
-                rels.extend(self.outgoing)
-                rels.extend(self.incoming)
-                for rel in rels:
+                for rel in self.outgoing:
                     yield rel
-
+                for rel in self.incoming:
+                    yield rel
+                
         return RelationshipsHolder(self._data_store, self)
 
 
