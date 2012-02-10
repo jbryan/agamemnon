@@ -560,8 +560,7 @@ class DataStore(object):
             try:
                 index_dict[arg] = attributes[arg]
             except KeyError:
-                print arg
-                print attributes
+                #if this attribute doesn't exist for this node, just pass
                 pass
         return index_dict
             
