@@ -22,6 +22,7 @@ class DataStore(object):
     def __init__(self, delegate):
         self.delegate = delegate
         self.conn = ES("33.33.33.10:9200")
+        self.indices = {}
 
     @contextmanager
     def batch(self):
@@ -473,7 +474,7 @@ class DataStore(object):
     #search takes a node type and an index to use, and performs a query
     #on the index searching for the query string
     def search_index(self, type, index_name, query):
-        ns_index_name = str(type) + "_" + index_name
+        ns_index_name = str(type) + "__" + index_name
         q = StringQuery(query)
         results = self.conn.search(query=q, indices=ns_index_name, doc_types=type)
         nodelist = []
@@ -487,7 +488,7 @@ class DataStore(object):
     #create the mapping and initialize an index corresponding to this mapping
     #within the connection, and add all existing nodes to the index
     def create_index(self, type, args, index_name):
-        ns_index_name = str(type) + "_" + index_name
+        ns_index_name = str(type) + "__" + index_name
         self.conn.delete_index_if_exists(ns_index_name)
         self.conn.create_index(ns_index_name)
         #create the mapping
@@ -500,12 +501,16 @@ class DataStore(object):
                             'term_vector': 'with_positions_offsets'}
         self.conn.put_mapping(str(type),{'properties':mapping},[ns_index_name])
         self.populate_new_index(type, ns_index_name, args)
+        self.refresh_index_cache()
+
+    def refresh_index_cache(self):
+        self.indices = self.conn.get_indices()
 
     def delete_index(self,type,index_name):
-        ns_index_name = str(type) + "_" + index_name
+        ns_index_name = str(type) + "__" + index_name
         self.conn.delete_index_if_exists(ns_index_name)
+        self.refresh_index_cache()
 
-    #populates a newly created index with documents
     def populate_new_index(self, type, ns_index_name, args):
         #add all the currently existing nodes into the index
         ref_node = self.get_reference_node(type)
@@ -545,10 +550,9 @@ class DataStore(object):
                 self.conn.refresh([ns_index_name])
 
     def get_indices_of_type(self,type):
-        indices = self.conn.get_indices()
         type_indices = []
-        for index in indices.keys():
-            if index.startswith(type):
+        for index in self.indices.keys():
+            if index.startswith(type+"__"):
                 type_indices.append(index)
         return type_indices
 
@@ -573,24 +577,6 @@ class DataStore(object):
                 return True
         return False
 
-    """
-    #given an existing index name, add a new field to be indexed
-    def add_field_to_index(self, type, index_name, new_field):
-        ns_index_name = str(type) + "_" + index_name
-        #save the mapping from the index
-        mapping = self.conn.get_mapping(str(type),ns_index_name)
-        mapping[ns_index_name]['properties'][new_field] = {'boost':1.0,
-              'index': 'analyzed',
-              'type': u'string',
-              'term_vector': 'with_positions_offsets'}
-        #then delete the index
-        self.conn.delete_index(ns_index_name)
-        #then recreate the index, adding in the new field
-        self.conn.put_mapping(str(type),mapping[ns_index_name],[ns_index_name])
-        #finally, add in all the new documents as before
-        args = mapping[ns_index_name]['properties'].keys() + [new_field]
-        self.populate_new_index(type,ns_index_name,args)
-    """
 
 def load_from_settings(settings, prefix='agamemnon.'):
     if settings["%skeyspace" % prefix] == 'memory':
