@@ -53,7 +53,7 @@ class AgamemnonStore(Store):
         self.node_cache.clear()
 
 
-    def open(self, configuration=None, create=False, repl_factor = 1):
+    def open(self, configuration=None, create=False, create_options=None):
         if configuration:
             self.configuration = configuration
         keyspace = self.configuration['agamemnon.keyspace']
@@ -67,7 +67,9 @@ class AgamemnonStore(Store):
                 log.warn("Keyspace didn't exist")
             finally:
                 log.info("Creating keyspace: %s" % keyspace)
-                system_manager.create_keyspace(keyspace, replication_factor=repl_factor)
+                if create_options is None:
+                    create_options = {"strategy_options": { 'replication_factor' : '1' }}
+                system_manager.create_keyspace(keyspace, **create_options)
 
         self.data_store = load_from_settings(self.configuration)
 

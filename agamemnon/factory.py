@@ -519,7 +519,7 @@ def load_from_settings(settings, prefix='agamemnon.'):
         ds_to_wrap = InMemoryDataStore()
     else:
         ds_to_wrap = CassandraDataStore(settings['%skeyspace' % prefix],
-                                        pycassa.connect(settings["%skeyspace" % prefix],
+                                        pycassa.pool.ConnectionPool(settings["%skeyspace" % prefix],
                                                         json.loads(settings["%shost_list" % prefix])),
                                         system_manager=pycassa.system_manager.SystemManager(
                                             json.loads(settings["%shost_list" % prefix])[0]))

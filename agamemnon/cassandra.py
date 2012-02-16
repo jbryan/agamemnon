@@ -101,6 +101,11 @@ def drop_keyspace(host_list, keyspace):
     system_manager = pycassa.SystemManager(json.loads(host_list)[0])
     system_manager.drop_keyspace(keyspace)
 
-def create_keyspace(host_list, keyspace, replication_factor=1):
+def create_keyspace(host_list, keyspace, **create_options):
     system_manager = pycassa.SystemManager(json.loads(host_list)[0])
-    system_manager.create_keyspace(keyspace, replication_factor=replication_factor)
+
+    print create_options
+    if "strategy_options" not in create_options:
+        create_options["strategy_options"] = { 'replication_factor' : '1' }
+
+    system_manager.create_keyspace(keyspace, **create_options)
