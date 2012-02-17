@@ -12,6 +12,7 @@ from agamemnon.cassandra import CassandraDataStore
 from agamemnon.memory import InMemoryDataStore
 from agamemnon.exceptions import NodeNotFoundException
 import agamemnon.primitives as prim
+from operator import itemgetter
 from pyes import *
 
 import logging
@@ -473,15 +474,21 @@ class DataStore(object):
 
     #search takes a node type and an index to use, and performs a query
     #on the index searching for the query string
-    def search_index(self, type, index_name, query):
+    #TODO: unique the results
+    def search_index(self, type, index_name, query, num_results=0):
         ns_index_name = str(type) + "__" + index_name
-        q = StringQuery(query)
+        q = WildcardQuery('_all',query)
         results = self.conn.search(query=q, indices=ns_index_name, doc_types=type)
         nodelist = []
-        for r in results['hits']['hits']:
+        n = 0
+        nodes = sorted(results['hits']['hits'], key=itemgetter('_score'),reverse=True)
+        for r in nodes:
             key = r['_source']['__id']
             node = self.get_node(type,key)
             nodelist.append(node)
+            n+=1
+            if(n>=num_results and num_results != 0):
+                break
         return nodelist
 
     #given a node type and fields to index, and a name for the index
@@ -491,7 +498,6 @@ class DataStore(object):
         ns_index_name = str(type) + "__" + index_name
         self.conn.delete_index_if_exists(ns_index_name)
         self.conn.create_index(ns_index_name)
-        #create the mapping
         mapping = {}
         args.append('__id')
         for arg in args:
@@ -500,8 +506,8 @@ class DataStore(object):
                             'type': u'string',
                             'term_vector': 'with_positions_offsets'}
         self.conn.put_mapping(str(type),{'properties':mapping},[ns_index_name])
-        self.populate_new_index(type, ns_index_name, args)
         self.refresh_index_cache()
+        self.populate_index(type, index_name, args)
 
     def refresh_index_cache(self):
         self.indices = self.conn.get_indices()
@@ -511,23 +517,25 @@ class DataStore(object):
         self.conn.delete_index_if_exists(ns_index_name)
         self.refresh_index_cache()
 
-    def populate_new_index(self, type, ns_index_name, args):
+    def populate_index(self, type, index_name, args):
         #add all the currently existing nodes into the index
+        ns_index_name = str(type) + "__" + index_name
         ref_node = self.get_reference_node(type)
         node_list = [rel.target_node for rel in ref_node.instance.outgoing]
+        mapping = self.conn.get_mapping(type,ns_index_name)
         for node in node_list:
             key = node.key
-            index_dict = self.populate_index_document(type,ns_index_name,node.attributes)
+            index_dict = self.populate_index_document(type,ns_index_name,node.attributes,mapping)
             self.conn.index(index_dict,ns_index_name,type,key)
         self.conn.refresh([ns_index_name])
 
-    #given a type of cf (node), update all the indices of that type with a new node
+    #given a type of node, update all the indices of that type with a new node
     def update_indices(self,type,attributes,key):
         type_indices = self.get_indices_of_type(type)
-        #add the new document to each of these indices (if there are any)
         if(len(type_indices)>0):
             for ns_index_name in type_indices:
-                index_dict = self.populate_index_document(type,ns_index_name,attributes)
+                mapping = self.conn.get_mapping(type,ns_index_name)
+                index_dict = self.populate_index_document(type,ns_index_name,attributes,mapping)
                 index_dict['__id']=key
                 self.conn.index(index_dict,ns_index_name,type,key)
                 self.conn.refresh([ns_index_name])
@@ -543,7 +551,8 @@ class DataStore(object):
     def modify_node_in_indices(self, type, attributes ,key):
         type_indices = self.get_indices_of_type(type)
         for ns_index_name in type_indices:
-            index_dict = self.populate_index_document(type,ns_index_name,attributes)
+            mapping = self.conn.get_mapping(type,ns_index_name)
+            index_dict = self.populate_index_document(type,ns_index_name,attributes,mapping)
             if(self.node_exists_in_index(type,key,ns_index_name)):
                 self.conn.delete(ns_index_name,type,key)
                 self.conn.index(index_dict,ns_index_name,type,key)
@@ -556,8 +565,7 @@ class DataStore(object):
                 type_indices.append(index)
         return type_indices
 
-    def populate_index_document(self,type,ns_index_name,attributes):
-        mapping = self.conn.get_mapping(type,ns_index_name)
+    def populate_index_document(self,type,ns_index_name,attributes,mapping):
         args = mapping[type]['properties'].keys()
         index_dict = {}
         for arg in args:

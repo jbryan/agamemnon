@@ -40,8 +40,8 @@ class AgamemnonTests(object):
         except NodeNotFoundException:
             pass
         
-        for index in self.ds.conn.get_indices().keys():
-            self.ds.conn.delete_index_if_exists(index)
+        #for index in self.ds.conn.get_indices().keys():
+            #self.ds.conn.delete_index_if_exists(index)
 
         self.ds.conn.delete_index_if_exists(ns_index_name)
         self.ds.conn.delete_index_if_exists(ns_new_name)
