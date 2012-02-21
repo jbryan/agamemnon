@@ -495,8 +495,8 @@ class DataStore(object):
             'analysis' : {
                 'analyzer' : {                             
                     'typeahead_analyzer' : {                   
-                        'tokenizer' : 'lowercase',
-                        'filter' : ['lowercase', 'ta_ngram'],
+                        'tokenizer' : 'standard',
+                        'filter' : ['standard', 'ta_ngram'],
                         'type' : 'custom'
                     }  
                 },

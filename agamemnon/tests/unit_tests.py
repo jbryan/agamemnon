@@ -52,7 +52,7 @@ class AgamemnonTests(object):
         self.failUnless(ns_index_name in self.ds.conn.get_indices())
         #test to see if search function works (also populate_indices)
         node1 = self.ds.get_node(node_type,key1)
-        nodes_found = self.ds.search_index(node_type,index_name,key1)
+        nodes_found = self.ds.search_index(node_type,index_name,'name1')
         self.failUnless(node1 in nodes_found)
         self.failUnlessEqual(1,len(nodes_found))
         nodes_found = self.ds.search_index(node_type,index_name,'1000')
@@ -65,7 +65,7 @@ class AgamemnonTests(object):
         #test update_indices function
         [key2,atr2] = self.create_node(node_type,2)
         node2 = self.ds.get_node(node_type,key2)
-        nodes_found = self.ds.search_index(node_type,index_name,key2)
+        nodes_found = self.ds.search_index(node_type,index_name,'name2')
         self.failUnless(node2 in nodes_found)
         self.failUnlessEqual(1,len(nodes_found))
         nodes_found = self.ds.search_index(node_type,index_name,'1000')
