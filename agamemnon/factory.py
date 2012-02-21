@@ -20,9 +20,9 @@ import logging
 log = logging.getLogger(__name__)
 
 class DataStore(object):
-    def __init__(self, delegate):
+    def __init__(self, delegate, es_server):
         self.delegate = delegate
-        self.conn = ES("33.33.33.10:9200")
+        self.conn = ES(es_server)
         self.indices = {}
 
     @contextmanager
@@ -472,9 +472,6 @@ class DataStore(object):
         if not item in self.__dict__:
             return getattr(self.delegate, item)
 
-    #search takes a node type and an index to use, and performs a query
-    #on the index searching for the query string
-    #TODO: unique the results
     def search_index(self, type, index_name, query, num_results=0):
         ns_index_name = str(type) + "__" + index_name
         q = WildcardQuery('_all',query)
@@ -491,21 +488,37 @@ class DataStore(object):
                 break
         return nodelist
 
-    #given a node type and fields to index, and a name for the index
-    #create the mapping and initialize an index corresponding to this mapping
-    #within the connection, and add all existing nodes to the index
     def create_index(self, type, args, index_name):
         ns_index_name = str(type) + "__" + index_name
         self.conn.delete_index_if_exists(ns_index_name)
-        self.conn.create_index(ns_index_name)
+        settings = { 'index': {
+            'analysis' : {
+                'analyzer' : {                             
+                    'typeahead_analyzer' : {                   
+                        'tokenizer' : 'lowercase',
+                        'filter' : ['lowercase', 'ta_ngram'],
+                        'type' : 'custom'
+                    }  
+                },
+                'filter' : {
+                    'ta_ngram' : {                                 
+                    'type' : 'nGram',
+                    'max_gram' : 30,
+                    'min_gram' : 1                                 
+                    }                           
+                }
+            }
+        }}
+        self.conn.create_index(ns_index_name,settings)
         mapping = {}
         args.append('__id')
         for arg in args:
             mapping[arg] = {'boost':1.0,
-                            'index': 'analyzed',
+                            'analyzer' : 'typeahead_analyzer',
                             'type': u'string',
                             'term_vector': 'with_positions_offsets'}
-        self.conn.put_mapping(str(type),{'properties':mapping},[ns_index_name])
+        index_settings = {'index_analyzer':'typeahead_analyzer','search_analyzer':'standard','properties':mapping}
+        self.conn.put_mapping(str(type),index_settings,[ns_index_name])
         self.refresh_index_cache()
         self.populate_index(type, index_name, args)
 
@@ -586,7 +599,7 @@ class DataStore(object):
         return False
 
 
-def load_from_settings(settings, prefix='agamemnon.'):
+def load_from_settings(settings, prefix='agamemnon.', es_server="33.33.33.10:9200"):
     if settings["%skeyspace" % prefix] == 'memory':
         ds_to_wrap = InMemoryDataStore()
     else:
@@ -595,5 +608,5 @@ def load_from_settings(settings, prefix='agamemnon.'):
                                                         json.loads(settings["%shost_list" % prefix])),
                                         system_manager=pycassa.system_manager.SystemManager(
                                             json.loads(settings["%shost_list" % prefix])[0]))
-    return DataStore(ds_to_wrap)
+    return DataStore(ds_to_wrap,es_server)
 
