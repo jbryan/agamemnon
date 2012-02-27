@@ -14,7 +14,7 @@ from agamemnon.exceptions import NodeNotFoundException
 import agamemnon.primitives as prim
 from operator import itemgetter
 from pyes import *
-
+from pyes import es, exceptions, connection, query, connection_http
 import logging
 
 log = logging.getLogger(__name__)
@@ -276,16 +276,15 @@ class DataStore(object):
                 args = {}
             #since node won't get created without args, we will include __id by default
             args["__id"] = key
-            node = prim.Node(self, type, key, args)
-
             serialized = self.serialize_columns(args)
             self.insert(type, key, serialized)
+            node = prim.Node(self, type, key, args)
             if not reference:
                 #this adds the created node to the reference node for this type of object
                 #that reference node functions as an index to easily access all nodes of a specific type
                 reference_node = self.get_reference_node(type)
                 reference_node.instance(node, key=key)
-            self.update_indices(type,args,node.key)
+            self.insert_node_into_indices(type,node)
             return node
 
     def delete_node(self, node):
@@ -472,36 +471,31 @@ class DataStore(object):
         if not item in self.__dict__:
             return getattr(self.delegate, item)
 
-    def search_index(self, type, index_name, query, num_results=0):
-        ns_index_name = str(type) + "__" + index_name
+    def search_index(self, type, index_names, query, num_results=-1):
+        ns_index_names= [str(type) + "-_-" + index_name for index_name in index_names]
         q = WildcardQuery('_all',query)
-        results = self.conn.search(query=q, indices=ns_index_name, doc_types=type)
-        nodelist = []
-        n = 0
-        nodes = sorted(results['hits']['hits'], key=itemgetter('_score'),reverse=True)
-        for r in nodes:
-            key = r['_source']['__id']
-            node = self.get_node(type,key)
-            nodelist.append(node)
-            n+=1
-            if(n>=num_results and num_results != 0):
-                break
+        results = self.conn.search(query=q, indices=ns_index_names, doc_types=type)
+        try:
+            nodelist = [self.get_node(type,r['_id']) for r in results['hits']['hits'][0:num_results]+[results['hits']['hits'][num_results]]]
+        except IndexError:
+            print 'index error'
+            nodelist = [self.get_node(type,r['_id']) for r in results['hits']['hits'][0:num_results]]
         return nodelist
 
-    def create_index(self, type, args, index_name):
-        ns_index_name = str(type) + "__" + index_name
+    def create_index(self, type, indexed_variables, index_name):
+        ns_index_name = str(type) + "-_-" + index_name
         self.conn.delete_index_if_exists(ns_index_name)
         settings = { 'index': {
             'analysis' : {
                 'analyzer' : {                             
-                    'typeahead_analyzer' : {                   
+                    'ngram_analyzer' : {                   
                         'tokenizer' : 'standard',
-                        'filter' : ['standard', 'ta_ngram'],
+                        'filter' : ['standard', 'filter_ngram'],
                         'type' : 'custom'
                     }  
                 },
                 'filter' : {
-                    'ta_ngram' : {                                 
+                    'filter_ngram' : {                                 
                     'type' : 'nGram',
                     'max_gram' : 30,
                     'min_gram' : 1                                 
@@ -511,54 +505,56 @@ class DataStore(object):
         }}
         self.conn.create_index(ns_index_name,settings)
         mapping = {}
-        args.append('__id')
-        for arg in args:
+        for arg in indexed_variables:
             mapping[arg] = {'boost':1.0,
-                            'analyzer' : 'typeahead_analyzer',
+                            'analyzer' : 'ngram_analyzer',
                             'type': u'string',
                             'term_vector': 'with_positions_offsets'}
-        index_settings = {'index_analyzer':'typeahead_analyzer','search_analyzer':'standard','properties':mapping}
+        index_settings = {'index_analyzer':'ngram_analyzer','search_analyzer':'standard','properties':mapping}
         self.conn.put_mapping(str(type),index_settings,[ns_index_name])
         self.refresh_index_cache()
-        self.populate_index(type, index_name, args)
+        self.populate_index(type, index_name)
 
     def refresh_index_cache(self):
         self.indices = self.conn.get_indices()
 
     def delete_index(self,type,index_name):
-        ns_index_name = str(type) + "__" + index_name
+        ns_index_name = str(type) + "-_-" + index_name
         self.conn.delete_index_if_exists(ns_index_name)
         self.refresh_index_cache()
 
-    def populate_index(self, type, index_name, args):
+    def populate_index(self, type, index_name):
         #add all the currently existing nodes into the index
-        ns_index_name = str(type) + "__" + index_name
+        ns_index_name = str(type) + "-_-" + index_name
         ref_node = self.get_reference_node(type)
         node_list = [rel.target_node for rel in ref_node.instance.outgoing]
         mapping = self.conn.get_mapping(type,ns_index_name)
         for node in node_list:
             key = node.key
             index_dict = self.populate_index_document(type,ns_index_name,node.attributes,mapping)
+            try:
+                self.conn.delete(ns_index_name,type,key)
+            except exceptions.NotFoundException:
+                pass
             self.conn.index(index_dict,ns_index_name,type,key)
         self.conn.refresh([ns_index_name])
 
-    #given a type of node, update all the indices of that type with a new node
-    def update_indices(self,type,attributes,key):
+    def insert_node_into_indices(self,type,node):
         type_indices = self.get_indices_of_type(type)
-        if(len(type_indices)>0):
-            for ns_index_name in type_indices:
-                mapping = self.conn.get_mapping(type,ns_index_name)
-                index_dict = self.populate_index_document(type,ns_index_name,attributes,mapping)
-                index_dict['__id']=key
-                self.conn.index(index_dict,ns_index_name,type,key)
-                self.conn.refresh([ns_index_name])
+        for ns_index_name in type_indices:
+            mapping = self.conn.get_mapping(type,ns_index_name)
+            index_dict = self.populate_index_document(type,ns_index_name,node.attributes,mapping)
+            self.conn.index(index_dict,ns_index_name,type,node.key)
+            self.conn.refresh([ns_index_name])
 
     def remove_node_from_indices(self, type, key):
         type_indices = self.get_indices_of_type(type)
         for ns_index_name in type_indices:
-            if(self.node_exists_in_index(type,key,ns_index_name)):
+            try:
                 self.conn.delete(ns_index_name,type,key)
                 self.conn.refresh([ns_index_name])
+            except exceptions.NotFoundException:
+                pass
            
     #find a given node and modify it in all the indices it is in
     def modify_node_in_indices(self, type, attributes ,key):
@@ -566,38 +562,30 @@ class DataStore(object):
         for ns_index_name in type_indices:
             mapping = self.conn.get_mapping(type,ns_index_name)
             index_dict = self.populate_index_document(type,ns_index_name,attributes,mapping)
-            if(self.node_exists_in_index(type,key,ns_index_name)):
+            try:
                 self.conn.delete(ns_index_name,type,key)
                 self.conn.index(index_dict,ns_index_name,type,key)
-                self.conn.refresh([ns_index_name])
+                self.conn.refresh([ns_index_name])#
+            except exceptions.NotFoundException:
+                pass
 
     def get_indices_of_type(self,type):
         type_indices = []
         for index in self.indices.keys():
-            if index.startswith(type+"__"):
+            if index.startswith(type+"-_-"):
                 type_indices.append(index)
         return type_indices
 
     def populate_index_document(self,type,ns_index_name,attributes,mapping):
-        args = mapping[type]['properties'].keys()
+        indexed_variables = mapping[type]['properties'].keys()
         index_dict = {}
-        for arg in args:
+        for arg in indexed_variables:
             try:
                 index_dict[arg] = attributes[arg]
             except KeyError:
                 #if this attribute doesn't exist for this node, just pass
                 pass
         return index_dict
-            
-    def node_exists_in_index(self,type,key,ns_index_name):
-        q = TermQuery('__id',key)
-        results = self.conn.search(query=q,indices=ns_index_name,doc_types=type)
-        for r in results['hits']['hits']:
-            key_found = r['_source']['__id']
-            if key_found == key:
-                return True
-        return False
-
 
 def load_from_settings(settings, prefix='agamemnon.', es_server="33.33.33.10:9200"):
     if settings["%skeyspace" % prefix] == 'memory':

@@ -29,6 +29,7 @@ class AgamemnonTests(object):
         new_index_name = "new_index"
         ns_index_name = node_type + "__" + index_name
         ns_new_name = node_type + "__" + new_index_name
+        """ To be placed in setup for test suite of plugin
         try:
             node1 = self.ds.get_node(node_type,'node_1')
             self.ds.delete_node(node1)
@@ -39,10 +40,7 @@ class AgamemnonTests(object):
             self.ds.delete_node(node2)
         except NodeNotFoundException:
             pass
-        
-        #for index in self.ds.conn.get_indices().keys():
-            #self.ds.conn.delete_index_if_exists(index)
-
+        """
         self.ds.conn.delete_index_if_exists(ns_index_name)
         self.ds.conn.delete_index_if_exists(ns_new_name)
         args = ['integer','long','float','string']
@@ -80,6 +78,7 @@ class AgamemnonTests(object):
         self.ds.create_node(node_type,'node_2',{'new_attr':'new_value'})
         new_node2 = self.ds.get_node(node_type,'node_2')
         nodes_found = self.ds.search_index(node_type,new_index_name,'new_value')
+        self.failUnless(node1 not in nodes_found)
         self.failUnless(new_node2 in nodes_found)
         self.failUnlessEqual(1,len(nodes_found))
         #test remove_node function
