@@ -13,8 +13,9 @@ from agamemnon.memory import InMemoryDataStore
 from agamemnon.exceptions import NodeNotFoundException
 import agamemnon.primitives as prim
 from operator import itemgetter
-from pyes import *
-from pyes import es, exceptions, connection, query, connection_http
+from pyes.es import ES
+from pyes import exceptions
+from pyes.query import WildcardQuery
 import logging
 
 log = logging.getLogger(__name__)
@@ -471,14 +472,13 @@ class DataStore(object):
         if not item in self.__dict__:
             return getattr(self.delegate, item)
 
-    def search_index(self, type, index_names, query, num_results=-1):
+    def search_index(self, type, index_names, query_string, num_results=-1):
         ns_index_names= [str(type) + "-_-" + index_name for index_name in index_names]
-        q = WildcardQuery('_all',query)
+        q = WildcardQuery('_all',query_string)
         results = self.conn.search(query=q, indices=ns_index_names, doc_types=type)
         try:
             nodelist = [self.get_node(type,r['_id']) for r in results['hits']['hits'][0:num_results]+[results['hits']['hits'][num_results]]]
         except IndexError:
-            print 'index error'
             nodelist = [self.get_node(type,r['_id']) for r in results['hits']['hits'][0:num_results]]
         return nodelist
 

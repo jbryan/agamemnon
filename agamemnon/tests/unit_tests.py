@@ -4,7 +4,7 @@ from unittest import TestCase
 from agamemnon import cassandra
 from agamemnon.factory import load_from_settings
 from agamemnon.primitives import updating_node
-from agamemnon.exceptions import *
+from agamemnon.exceptions import NodeNotFoundException
 
 class AgamemnonTests(object):
     def create_node(self, node_type, id):
