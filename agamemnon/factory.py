@@ -10,48 +10,43 @@ from agamemnon.graph_constants import RELATIONSHIP_KEY_PATTERN, OUTBOUND_RELATIO
 import pycassa
 from agamemnon.cassandra import CassandraDataStore
 from agamemnon.memory import InMemoryDataStore
-from agamemnon.exceptions import NodeNotFoundException
+from agamemnon.exceptions import NodeNotFoundException, ElasticSearchDisabled
 import agamemnon.primitives as prim
-from operator import itemgetter
-from pyes.es import ES
-from pyes import exceptions
-from pyes.query import WildcardQuery
+from agamemnon.delegate import Delegate
 import logging
 
 log = logging.getLogger(__name__)
 
 class DataStore(object):
-    def __init__(self, delegate, es_server):
+    def __init__(self, delegate):
         self.delegate = delegate
-        self.conn = ES(es_server)
-        self.indices = {}
 
     @contextmanager
     def batch(self):
-        self.delegate.start_batch()
+        self.delegate.d.start_batch()
         yield
-        self.delegate.commit_batch()
+        self.delegate.d.commit_batch()
 
     def multiget(self, type, row_keys, **kwargs):
-        column_family = self.delegate.get_cf(type)
+        column_family = self.delegate.d.get_cf(type)
         return [
             (key, self.deserialize_value(value))
             for key, value in column_family.multiget(row_keys, **kwargs).items()
         ]
 
     def get(self, type, row_key, **kwargs):
-        column_family = self.delegate.get_cf(type)
+        column_family = self.delegate.d.get_cf(type)
         return self.deserialize_value(column_family.get(row_key, **kwargs))
 
     def delete(self, type, key, **kwargs):
-        self.delegate.remove(self.get_cf(type), key, **kwargs)
+        self.delegate.d.remove(self.get_cf(type), key, **kwargs)
 
     def insert(self, type, key, args, super_key=None):
-        if not self.delegate.cf_exists(type):
-            column_family = self.delegate.create_cf(type)
+        if not self.delegate.d.cf_exists(type):
+            column_family = self.delegate.d.create_cf(type)
 
         else:
-            column_family = self.delegate.get_cf(type)
+            column_family = self.delegate.d.get_cf(type)
         serialized = self.serialize_columns(args)
         if super_key is None:
             column_family.insert(key, serialized)
@@ -85,7 +80,7 @@ class DataStore(object):
         #probably need a different delimiter.
         #TODO: fix delimiter
         try:
-            num_columns = self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start='%s__' % rel_type,
+            num_columns = self.delegate.d.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start='%s__' % rel_type,
                                      column_finish='%s_`' % rel_type,)
             super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, column_start='%s__' % rel_type,
                                      column_finish='%s_`' % rel_type,
@@ -105,7 +100,7 @@ class DataStore(object):
         #probably need a different delimiter.
         #TODO: fix delimiter
         try:
-            num_columns = self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start='%s__' % rel_type,
+            num_columns = self.delegate.d.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start='%s__' % rel_type,
                                      column_finish='%s_`' % rel_type,)
 
             super_columns = self.get(INBOUND_RELATIONSHIP_CF, target_key, column_start='%s__' % rel_type,
@@ -207,7 +202,7 @@ class DataStore(object):
             self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, {rel_key: serialized})
             self.insert(INBOUND_RELATIONSHIP_CF, target_key, {rel_key: serialized})
 
-            #            relationship_index_cf = self.delegate.get_cf(RELATIONSHIP_INDEX)
+            #            relationship_index_cf = self.delegate.d.get_cf(RELATIONSHIP_INDEX)
             # Add entries in the relationship index
             self.insert(RELATIONSHIP_INDEX, source_key, {target_node.key: {rel_type: '%s__outgoing' % rel_key}})
             self.insert(RELATIONSHIP_INDEX, target_key, {source_node.key: {rel_type: '%s__incoming' % rel_key}})
@@ -243,7 +238,7 @@ class DataStore(object):
         > node_a =
 
         """
-        index = self.delegate.get_cf(RELATIONSHIP_INDEX)
+        index = self.delegate.d.get_cf(RELATIONSHIP_INDEX)
         node_a_row_key = ENDPOINT_NAME_TEMPLATE % (node_a.type, node_a.key)
         rel_list = []
         try:
@@ -270,7 +265,11 @@ class DataStore(object):
             node = self.get_node(type, key)
             node.attributes.update(args)
             self.save_node(node)
-            self.modify_node_in_indices(type,node.attributes,node.key)
+            try:
+                modify_node_index = getattr(self,'modify_node_in_indices')
+                modify_node_index(type,node)
+            except ElasticSearchDisabled:
+                pass
             return node
         except NodeNotFoundException:
             if args is None:
@@ -285,12 +284,20 @@ class DataStore(object):
                 #that reference node functions as an index to easily access all nodes of a specific type
                 reference_node = self.get_reference_node(type)
                 reference_node.instance(node, key=key)
-            self.insert_node_into_indices(type,node)
+            try:
+                insert_node_index = getattr(self,'insert_node_into_indices')
+                insert_node_index(type,node)
+            except ElasticSearchDisabled:
+                pass
             return node
 
     def delete_node(self, node):
         relationships = node.relationships
-        self.remove_node_from_indices(node.type,node.key)
+        try:
+            remove_node_index = getattr(self,'remove_node_from_indices')
+            remove_node_index(node)
+        except ElasticSearchDisabled:
+            pass
         with self.batch():
            for rel in relationships:
                 rel.delete()
@@ -314,7 +321,7 @@ class DataStore(object):
 
             try:
                 next_start_id = ""
-                num_columns = self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=next_start_id)
+                num_columns = self.delegate.d.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=next_start_id)
                 outbound_results = self.get(OUTBOUND_RELATIONSHIP_CF, source_key,
                                             column_start=next_start_id, column_count=num_columns)
             except NotFoundException:
@@ -323,7 +330,7 @@ class DataStore(object):
             try:
                 next_start_id = ""
                 inbound_results = {}
-                num_columns = self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start=next_start_id)
+                num_columns = self.delegate.d.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start=next_start_id)
                 inbound_results = self.get(INBOUND_RELATIONSHIP_CF, target_key,
                                         column_start=next_start_id, column_count=num_columns)
             except NotFoundException:
@@ -394,7 +401,7 @@ class DataStore(object):
 
         clause = index.create_index_clause(expressions, start_key=start_key, count=row_count)
         try:
-            column_family = self.delegate.get_cf(type)
+            column_family = self.delegate.d.get_cf(type)
             rows = column_family.get_indexed_slices(clause, **kwargs)
         except NotFoundException:
             raise NodeNotFoundException()
@@ -473,128 +480,27 @@ class DataStore(object):
             return getattr(self.delegate, item)
 
     def search_index(self, type, index_names, query_string, num_results=-1):
-        ns_index_names= [str(type) + "-_-" + index_name for index_name in index_names]
-        q = WildcardQuery('_all',query_string)
-        results = self.conn.search(query=q, indices=ns_index_names, doc_types=type)
         try:
-            nodelist = [self.get_node(type,r['_id']) for r in results['hits']['hits'][0:num_results]+[results['hits']['hits'][num_results]]]
-        except IndexError:
-            nodelist = [self.get_node(type,r['_id']) for r in results['hits']['hits'][0:num_results]]
-        return nodelist
+            search_index_wrapper = getattr(self.delegate, 'search_index_wrapped')
+            return search_index_wrapper(type,index_names,query_string,self,num_results)
+        except ElasticSearchDisabled:
+            pass
 
     def create_index(self, type, indexed_variables, index_name):
-        ns_index_name = str(type) + "-_-" + index_name
-        self.conn.delete_index_if_exists(ns_index_name)
-        settings = { 'index': {
-            'analysis' : {
-                'analyzer' : {                             
-                    'ngram_analyzer' : {                   
-                        'tokenizer' : 'standard',
-                        'filter' : ['standard', 'filter_ngram'],
-                        'type' : 'custom'
-                    }  
-                },
-                'filter' : {
-                    'filter_ngram' : {                                 
-                    'type' : 'nGram',
-                    'max_gram' : 30,
-                    'min_gram' : 1                                 
-                    }                           
-                }
-            }
-        }}
-        self.conn.create_index(ns_index_name,settings)
-        mapping = {}
-        for arg in indexed_variables:
-            mapping[arg] = {'boost':1.0,
-                            'analyzer' : 'ngram_analyzer',
-                            'type': u'string',
-                            'term_vector': 'with_positions_offsets'}
-        index_settings = {'index_analyzer':'ngram_analyzer','search_analyzer':'standard','properties':mapping}
-        self.conn.put_mapping(str(type),index_settings,[ns_index_name])
-        self.refresh_index_cache()
-        self.populate_index(type, index_name)
-
-    def refresh_index_cache(self):
-        self.indices = self.conn.get_indices()
-
-    def delete_index(self,type,index_name):
-        ns_index_name = str(type) + "-_-" + index_name
-        self.conn.delete_index_if_exists(ns_index_name)
-        self.refresh_index_cache()
+        try:
+            create_index_wrapper = getattr(self.delegate, 'create_index_wrapped')
+            return create_index_wrapper(type,indexed_variables,index_name,self)
+        except ElasticSearchDisabled:
+            pass
 
     def populate_index(self, type, index_name):
-        #add all the currently existing nodes into the index
-        ns_index_name = str(type) + "-_-" + index_name
-        ref_node = self.get_reference_node(type)
-        node_list = [rel.target_node for rel in ref_node.instance.outgoing]
-        mapping = self.conn.get_mapping(type,ns_index_name)
-        for node in node_list:
-            key = node.key
-            index_dict = self.populate_index_document(type,ns_index_name,node.attributes,mapping)
-            try:
-                self.conn.delete(ns_index_name,type,key)
-            except exceptions.NotFoundException:
-                pass
-            self.conn.index(index_dict,ns_index_name,type,key)
-        self.conn.refresh([ns_index_name])
-
-    def insert_node_into_indices(self,type,node):
-        type_indices = self.get_indices_of_type(type)
-        for ns_index_name in type_indices:
-            mapping = self.conn.get_mapping(type,ns_index_name)
-            index_dict = self.populate_index_document(type,ns_index_name,node.attributes,mapping)
-            self.conn.index(index_dict,ns_index_name,type,node.key)
-            self.conn.refresh([ns_index_name])
-
-    def remove_node_from_indices(self, type, key):
-        type_indices = self.get_indices_of_type(type)
-        for ns_index_name in type_indices:
-            try:
-                self.conn.delete(ns_index_name,type,key)
-                self.conn.refresh([ns_index_name])
-            except exceptions.NotFoundException:
-                pass
-           
-    #find a given node and modify it in all the indices it is in
-    def modify_node_in_indices(self, type, attributes ,key):
-        type_indices = self.get_indices_of_type(type)
-        for ns_index_name in type_indices:
-            mapping = self.conn.get_mapping(type,ns_index_name)
-            index_dict = self.populate_index_document(type,ns_index_name,attributes,mapping)
-            try:
-                self.conn.delete(ns_index_name,type,key)
-                self.conn.index(index_dict,ns_index_name,type,key)
-                self.conn.refresh([ns_index_name])#
-            except exceptions.NotFoundException:
-                pass
-
-    def get_indices_of_type(self,type):
-        type_indices = []
-        for index in self.indices.keys():
-            if index.startswith(type+"-_-"):
-                type_indices.append(index)
-        return type_indices
-
-    def populate_index_document(self,type,ns_index_name,attributes,mapping):
-        indexed_variables = mapping[type]['properties'].keys()
-        index_dict = {}
-        for arg in indexed_variables:
-            try:
-                index_dict[arg] = attributes[arg]
-            except KeyError:
-                #if this attribute doesn't exist for this node, just pass
-                pass
-        return index_dict
+        try:
+            populate_index_wrapper = getattr(self.delegate, 'populate_index')
+            return populate_index_wrapper(type, index_name, self)
+        except ElasticSearchDisabled:
+            pass
 
 def load_from_settings(settings, prefix='agamemnon.', es_server="33.33.33.10:9200"):
-    if settings["%skeyspace" % prefix] == 'memory':
-        ds_to_wrap = InMemoryDataStore()
-    else:
-        ds_to_wrap = CassandraDataStore(settings['%skeyspace' % prefix],
-                                        pycassa.connect(settings["%skeyspace" % prefix],
-                                                        json.loads(settings["%shost_list" % prefix])),
-                                        system_manager=pycassa.system_manager.SystemManager(
-                                            json.loads(settings["%shost_list" % prefix])[0]))
-    return DataStore(ds_to_wrap,es_server)
+    delegate = Delegate(settings,prefix,es_server)
+    return DataStore(delegate)
 
