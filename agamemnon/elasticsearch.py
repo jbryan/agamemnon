@@ -36,7 +36,6 @@ class FullTextSearch(object):
                     'type' : 'nGram',
                     'max_gram' : 30,
                     'min_gram' : 1                                 
-#TODO: delegate -> delegate.d
                     }                           
                 }
             }
@@ -77,15 +76,15 @@ class FullTextSearch(object):
             self.conn.index(index_dict,ns_index_name,type,key)
         self.conn.refresh([ns_index_name])
 
-    def insert_node_into_indices(self,type,node):
-        type_indices = self.get_indices_of_type(type)
+    def on_create(self,node):
+        type_indices = self.get_indices_of_type(node.type)
         for ns_index_name in type_indices:
-            mapping = self.conn.get_mapping(type,ns_index_name)
-            index_dict = self.populate_index_document(type,ns_index_name,node.attributes,mapping)
-            self.conn.index(index_dict,ns_index_name,type,node.key)
+            mapping = self.conn.get_mapping(node.type,ns_index_name)
+            index_dict = self.populate_index_document(node.type,ns_index_name,node.attributes,mapping)
+            self.conn.index(index_dict,ns_index_name,node.type,node.key)
             self.conn.refresh([ns_index_name])
 
-    def remove_node_from_indices(self, node):
+    def on_delete(self, node):
         type_indices = self.get_indices_of_type(node.type)
         for ns_index_name in type_indices:
             try:
@@ -95,14 +94,14 @@ class FullTextSearch(object):
                 pass
            
     #find a given node and modify it in all the indices it is in
-    def modify_node_in_indices(self, type, node):
-        type_indices = self.get_indices_of_type(type)
+    def on_modify(self, node):
+        type_indices = self.get_indices_of_type(node.type)
         for ns_index_name in type_indices:
-            mapping = self.conn.get_mapping(type,ns_index_name)
-            index_dict = self.populate_index_document(type,ns_index_name,node.attributes,mapping)
+            mapping = self.conn.get_mapping(node.type,ns_index_name)
+            index_dict = self.populate_index_document(node.type,ns_index_name,node.attributes,mapping)
             try:
-                self.conn.delete(ns_index_name,type,node.key)
-                self.conn.index(index_dict,ns_index_name,type,node.key)
+                self.conn.delete(ns_index_name,node.type,node.key)
+                self.conn.index(index_dict,ns_index_name,node.type,node.key)
                 self.conn.refresh([ns_index_name])
             except exceptions.NotFoundException:
                 pass

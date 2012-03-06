@@ -10,9 +10,10 @@ from agamemnon.graph_constants import RELATIONSHIP_KEY_PATTERN, OUTBOUND_RELATIO
 import pycassa
 from agamemnon.cassandra import CassandraDataStore
 from agamemnon.memory import InMemoryDataStore
-from agamemnon.exceptions import NodeNotFoundException, ElasticSearchDisabled
+from agamemnon.exceptions import NodeNotFoundException, PluginDisabled
 import agamemnon.primitives as prim
 from agamemnon.delegate import Delegate
+from agamemnon.elasticsearch import FullTextSearch
 import logging
 
 log = logging.getLogger(__name__)
@@ -265,11 +266,7 @@ class DataStore(object):
             node = self.get_node(type, key)
             node.attributes.update(args)
             self.save_node(node)
-            try:
-                modify_node_index = getattr(self,'modify_node_in_indices')
-                modify_node_index(type,node)
-            except ElasticSearchDisabled:
-                pass
+            self.delegate.on_modify(node)
             return node
         except NodeNotFoundException:
             if args is None:
@@ -284,20 +281,12 @@ class DataStore(object):
                 #that reference node functions as an index to easily access all nodes of a specific type
                 reference_node = self.get_reference_node(type)
                 reference_node.instance(node, key=key)
-            try:
-                insert_node_index = getattr(self,'insert_node_into_indices')
-                insert_node_index(type,node)
-            except ElasticSearchDisabled:
-                pass
+            self.delegate.on_create(node)
             return node
 
     def delete_node(self, node):
         relationships = node.relationships
-        try:
-            remove_node_index = getattr(self,'remove_node_from_indices')
-            remove_node_index(node)
-        except ElasticSearchDisabled:
-            pass
+        self.delegate.on_delete(node)
         with self.batch():
            for rel in relationships:
                 rel.delete()
@@ -483,24 +472,28 @@ class DataStore(object):
         try:
             search_index_wrapper = getattr(self.delegate, 'search_index_wrapped')
             return search_index_wrapper(type,index_names,query_string,self,num_results)
-        except ElasticSearchDisabled:
+        except PluginDisabled:
             pass
 
     def create_index(self, type, indexed_variables, index_name):
         try:
             create_index_wrapper = getattr(self.delegate, 'create_index_wrapped')
+            print create_index_wrapper
             return create_index_wrapper(type,indexed_variables,index_name,self)
-        except ElasticSearchDisabled:
+        except PluginDisabled:
             pass
 
     def populate_index(self, type, index_name):
         try:
             populate_index_wrapper = getattr(self.delegate, 'populate_index')
             return populate_index_wrapper(type, index_name, self)
-        except ElasticSearchDisabled:
+        except PluginDisabled:
             pass
 
 def load_from_settings(settings, prefix='agamemnon.', es_server="33.33.33.10:9200"):
-    delegate = Delegate(settings,prefix,es_server)
+    plugin_dict = {}
+    if(es_server!='disable'):
+        plugin_dict['elastic_search'] = FullTextSearch(es_server)
+    delegate = Delegate(settings,prefix,plugin_dict)
     return DataStore(delegate)
 

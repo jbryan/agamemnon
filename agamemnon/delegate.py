@@ -1,13 +1,13 @@
 from agamemnon.cassandra import CassandraDataStore
 from agamemnon.memory import InMemoryDataStore
 from agamemnon.elasticsearch import FullTextSearch
-from agamemnon.exceptions import ElasticSearchDisabled
+from agamemnon.exceptions import PluginDisabled
 import pycassa
 import json
 
 
 class Delegate(object):
-    def __init__(self,settings,prefix,es_server):
+    def __init__(self,settings,prefix,plugin_dict):
         if settings["%skeyspace" % prefix] == 'memory':
             self.d = InMemoryDataStore()
         else:
@@ -16,24 +16,38 @@ class Delegate(object):
                                                         json.loads(settings["%shost_list" % prefix])),
                                         system_manager=pycassa.system_manager.SystemManager(
                                             json.loads(settings["%shost_list" % prefix])[0]))
-            if(es_server != 'disable'):
-                self.elastic_search = FullTextSearch(es_server)
-            else:
-                self.elastic_search = None
+            self.plugins = []
+            for key,plugin in plugin_dict.items():
+                self.__dict__[key]=plugin
+                self.plugins.append(key)
+
+
+    def on_create(self,node):
+        for plugin in self.plugins:
+            plugin_object = self.__dict__[plugin]
+            plugin_object.on_create(node)
+
+    def on_delete(self,node):
+        for plugin in self.plugins:
+            plugin_object = self.__dict__[plugin]
+            plugin_object.on_delete(node)
+
+    def on_modify(self,node):
+        for plugin in self.plugins:
+            plugin_object = self.__dict__[plugin]
+            plugin_object.on_modify(node)
 
     def __getattr__(self, item):
-        es_functions = ['create_index_wrapped','search_index_wrapped','refresh_index_cache',
-                        'populate_index','delete_index','insert_node_into_indices',
-                        'remove_node_from_indices','modify_node_in_indices',
-                        'get_indices_of_type','populate_index_document','conn']
-        if item in es_functions:
-            if self.elastic_search != None:
+        try:
+            attr = getattr(self.d,item)
+            return attr
+        except AttributeError:
+            for plugin in self.plugins:
+                plugin_object_wrapper = self.__dict__[plugin]
                 try:
-                    return getattr(self.elastic_search,item)
-                except:
-                    raise AttributeError(item)
-            else:
-                raise ElasticSearchDisabled
-                pass
-        else:
-            return getattr(self.d,item)
+                    attr = getattr(plugin_object_wrapper,item)
+                    return attr
+                except AttributeError:
+                    pass
+            raise PluginDisabled
+

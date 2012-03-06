@@ -5,5 +5,5 @@ class NoTransactionError(Exception):
 class NodeNotFoundException(Exception):
     pass
 
-class ElasticSearchDisabled(Exception):
+class PluginDisabled(Exception):
     pass
