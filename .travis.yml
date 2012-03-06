@@ -3,13 +3,16 @@ python:
   - "2.6"
   - "2.7"
 before_install:
-  - sudo apt-get install python-software-properties
+  - sudo apt-get install -y python-software-properties
   - sudo add-apt-repository ppa:ferramroberto/java
   - sudo apt-get update
-  - sudo apt-get install sun-java6-jdk
-  - sudo sh -c "echo \"deb http://debian.datastax.com/community stable main\" > /etc/apt/sources.list"
+  - sudo apt-get -y install debconf-utils
+  - echo "sun-java6-jre shared/accepted-sun-dlj-v1-1 boolean true" >> sun-java6-jre.preseed
+  - cat sun-java6-jre.preseed | sudo debconf-set-selections
+  - sudo apt-get install -y sun-java6-jre
+  - sudo sh -c "echo \"deb http://debian.datastax.com/community stable main\" >> /etc/apt/sources.list"
   - wget -O - http://debian.datastax.com/debian/repo_key | sudo apt-key add -
-  - sudo apt-get update && sudo apt-get install dsc
+  - sudo apt-get update && sudo apt-get install -y dsc
   - sudo /etc/init.d/cassandra start
 install: pip install . --use-mirrors
 script: nosetests
