@@ -1,16 +1,9 @@
 import unittest
-import time
-
-from tempfile import mkdtemp
-
-from rdflib.term import URIRef, BNode, Literal
-from rdflib.namespace import RDF, Namespace
+from rdflib.term import URIRef, Literal
+from rdflib.namespace import  Namespace
 from rdflib.graph import Graph
-
 import rdflib.plugin
-
 from agamemnon.rdf_store import AgamemnonStore
-
 import uuid
 
 import logging
@@ -467,7 +460,7 @@ class GraphMemoryTestCase(unittest.TestCase):
         #additional examples for the fun of it
         self.graph1.parse("http://bigasterisk.com/foaf.rdf")
         self.graph1.parse("http://www.w3.org/People/Berners-Lee/card.rdf")
-        self.graph1.parse("http://danbri.livejournal.com/data/foaf") 
+        #self.graph1.parse("http://danbri.livejournal.com/data/foaf") 
 
         self.graph1.serialize("serialized.rdf")
 

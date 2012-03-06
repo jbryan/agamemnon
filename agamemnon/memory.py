@@ -1,6 +1,7 @@
 import operator
 from ordereddict import OrderedDict
 from pycassa.cassandra.ttypes import NotFoundException
+from pycassa.index import LT, LTE, EQ, GTE, GT
 from agamemnon.graph_constants import ASCII
 import logging
 
@@ -8,8 +9,8 @@ log = logging.getLogger()
 
 class InMemoryDataStore(object):
     def __init__(self):
-        self.tables = {}
-        self.transactions = {}
+        self.tables = OrderedDict()
+        self.transactions = []
         self.batch_count = 0
         self.in_batch = False
 
@@ -25,6 +26,10 @@ class InMemoryDataStore(object):
     def create_cf(self, type, column_type=ASCII, super=False, index_columns=list()):
         self.tables[type] = ColumnFamily(type, column_type)
         return self.tables[type]
+    
+    def create_secondary_index(self, type, column, column_type=None):
+        # DO NOTHING, for now we just do complete scans since memory is "fast enough"
+        pass
 
     def cf_exists(self, type):
         return type in self.tables.keys()
@@ -34,7 +39,7 @@ class InMemoryDataStore(object):
             cf.insert(row, columns)
 
         if self.in_batch:
-            self.transactions[('insert', cf.name, row, tuple(columns.keys()))] = execute
+            self.transactions.append(execute)
         else:
             execute()
 
@@ -43,30 +48,20 @@ class InMemoryDataStore(object):
             cf.remove(row, columns=columns, super_column=super_column)
             
         if self.in_batch:
-            if columns is not None and super_column is not None\
-            and not ('remove', cf.name, row, super_column) in self.transactions.keys():
-                key = ('remove', cf.name, row, tuple(columns), super_column)
-            elif columns is not None and not ('remove', cf.name, row) in self.transactions.keys():
-                key = ('remove', cf.name, row, tuple(columns))
-            elif super_column is not None:
-                key = ('remove', cf.name, row, super_column)
-            else:
-                key = ('remove', cf.name, row)
-            if not key in self.transactions.keys() and not ('remove', cf.name, row) in self.transactions.keys():
-                self.transactions[key] = execute
+            self.transactions.append(execute)
         else:
             execute()
 
-    def start_batch(self):
+    def start_batch(self, queue_size = 0):
         self.in_batch = True
         self.batch_count += 1
 
     def commit_batch(self):
         self.batch_count -= 1
         if not self.batch_count:
-            for key, value in self.transactions.items():
-                value()
-            self.transactions.clear()
+            for item in self.transactions:
+                item()
+            self.transactions = []
             self.in_batch = False
 
 
@@ -78,72 +73,38 @@ class ColumnFamily(object):
         self.super = super
 
     def get_count(self, row, columns=None, column_start=None, super_column=None, column_finish=None):
-        try:
-            if columns is None and column_start is None and super_column is None:
-                results = self.data[row]
-            else:
-                if super_column is None:
-                    data_columns = self.data[row]
-                else:
-                    data_columns = self.data[row][super_column]
-                results = {}
-                count = 0
-                if columns is not None:
-                    for c in columns:
-                        results[c] = data_columns[c]
-                else:
-                    for c in data_columns.keys():
-                        if column_start is not None and column_finish is not None:
-                            if ((cmp(c, column_start) > 0
-                                and cmp(c, column_finish) < 0)
-                                or cmp(c, column_finish) == 0
-                                or cmp(c, column_start) == 0):
+        count = float("inf")
+        results = self.get(row, columns, column_start, super_column, column_finish, count)
+        return len(results)
 
-                                results[c] = data_columns[c]
-                                count += 1
-                        else:
-                            results[c] = data_columns[c]
-                            count += 1
-            if not len(results):
-                raise NotFoundException
-            for key, value in results.items():
-                if isinstance(value, dict) and len(value) == 0:
-                    del(results[key])
-                if value is None:
-                    del(results[key])
-            return len(results)
-        except KeyError:
-            raise NotFoundException
+    def multiget(self, row_keys, **kwargs):
+        return OrderedDict([
+            (row, self.get(row, **kwargs))
+            for row in row_keys
+        ])
         
     def get(self, row, columns=None, column_start=None, super_column=None, column_finish=None, column_count=100):
         try:
-            if columns is None and column_start is None and super_column is None:
-                results = self.data[row]
+            if super_column is None:
+                data_columns = self.data[row]
             else:
-                if super_column is None:
-                    data_columns = self.data[row]
-                else:
-                    data_columns = self.data[row][super_column]
-                results = {}
-                count = 0
-                if columns is not None:
-                    for c in columns:
-                        results[c] = data_columns[c]
-                else:
-                    for c in data_columns.keys():
-                        if count > column_count:
-                            break
-                        if column_start is not None and column_finish is not None:
-                            if ((cmp(c, column_start) > 0
-                                and cmp(c, column_finish) < 0)
-                                or cmp(c, column_finish) == 0
-                                or cmp(c, column_start) == 0):
+                data_columns = self.data[row][super_column]
+            results = OrderedDict()
+            count = 0
+            if columns is not None:
+                for c in columns:
+                    results[c] = data_columns[c]
+            else:
+                for c in sorted(data_columns.keys()):
+                    if count > column_count:
+                        break
+                    if column_start and cmp(c,column_start) < 0:
+                        continue
+                    if column_finish and cmp(c, column_finish) > 0:
+                        break
 
-                                results[c] = data_columns[c]
-                                count += 1
-                        else:
-                            results[c] = data_columns[c]
-                            count += 1
+                    results[c] = data_columns[c]
+                    count += 1
             if not len(results):
                 raise NotFoundException
             for key, value in results.items():
@@ -205,10 +166,23 @@ class ColumnFamily(object):
             raise NotFoundException
 
     def get_indexed_slices(self, index_clause):
-        expression = index_clause.expressions[0]
-        column_name = expression.column_name
-        value = expression.value
         for i in self.data.items():
-            if i[1][column_name] == value:
+            for expression in index_clause.expressions:
+                if expression.column_name not in i[1]:
+                    break
+                value = i[1][expression.column_name]
+                comp = {
+                    LT: value.__lt__,
+                    LTE: value.__le__,
+                    EQ: value.__eq__,
+                    GTE: value.__ge__,
+                    GT: value.__gt__,
+                }[expression.op]
+
+                if not comp(expression.value):
+                    # break out of the expression loop and try next data item
+                    break
+            else:
+                # passed all expressions, this one is good
                 yield i[0], i[1]
   

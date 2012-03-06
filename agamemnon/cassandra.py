@@ -40,9 +40,12 @@ class CassandraDataStore(object):
     def create_cf(self, type, column_type=system_manager.ASCII_TYPE, super=False, index_columns=list()):
         self._system_manager.create_column_family(self._keyspace, type, super=super, comparator_type=column_type)
         for column in index_columns:
-            self._system_manager.create_index(self._keyspace, type, column, column_type,
-                                              index_name='%s_%s_index' % (type, column))
+            self.create_secondary_index(type, column, column_type)
         return cf.ColumnFamily(self._pool, type, autopack_names=False, autopack_values=False)
+
+    def create_secondary_index(self, type, column, column_type=system_manager.ASCII_TYPE):
+        self._system_manager.create_index(self._keyspace, type, column, column_type,
+                                          index_name='%s_%s_index' % (type, column))
     
     def cf_exists(self, type):
         if type in self._cf_cache:
@@ -71,8 +74,9 @@ class CassandraDataStore(object):
     def insert(self, column_family, key, columns):
         if self._batch is not None:
             self._batch.insert(column_family, key, columns)
-        with Mutator(self._pool) as b:
-            b.insert(column_family, key, columns)
+        else:
+            with Mutator(self._pool) as b:
+                b.insert(column_family, key, columns)
 
     def remove(self,column_family, key, columns=None, super_column=None):
         if self._batch is not None:
@@ -80,10 +84,10 @@ class CassandraDataStore(object):
         else:
             column_family.remove(key, columns=columns, super_column=super_column)
 
-    def start_batch(self):
+    def start_batch(self, queue_size = 0):
         if self._batch is None:
             self.in_batch = True
-            self._batch = Mutator(self._pool,0)
+            self._batch = Mutator(self._pool,queue_size)
         self.batch_count += 1
 
 
@@ -97,6 +101,11 @@ def drop_keyspace(host_list, keyspace):
     system_manager = pycassa.SystemManager(json.loads(host_list)[0])
     system_manager.drop_keyspace(keyspace)
 
-def create_keyspace(host_list, keyspace, replication_factor=1):
+def create_keyspace(host_list, keyspace, **create_options):
     system_manager = pycassa.SystemManager(json.loads(host_list)[0])
-    system_manager.create_keyspace(keyspace, replication_factor=replication_factor)
+
+    print create_options
+    if "strategy_options" not in create_options:
+        create_options["strategy_options"] = { 'replication_factor' : '1' }
+
+    system_manager.create_keyspace(keyspace, **create_options)
