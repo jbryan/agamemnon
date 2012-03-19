@@ -21,33 +21,36 @@ log = logging.getLogger(__name__)
 class DataStore(object):
     def __init__(self, delegate):
         self.delegate = delegate
+        for plugin in self.delegate.plugins:
+            plugin_object = self.delegate.__dict__[plugin]
+            plugin_object.datastore = self
 
     @contextmanager
     def batch(self):
-        self.delegate.d.start_batch()
+        self.delegate.start_batch()
         yield
-        self.delegate.d.commit_batch()
+        self.delegate.commit_batch()
 
     def multiget(self, type, row_keys, **kwargs):
-        column_family = self.delegate.d.get_cf(type)
+        column_family = self.delegate.get_cf(type)
         return [
             (key, self.deserialize_value(value))
             for key, value in column_family.multiget(row_keys, **kwargs).items()
         ]
 
     def get(self, type, row_key, **kwargs):
-        column_family = self.delegate.d.get_cf(type)
+        column_family = self.delegate.get_cf(type)
         return self.deserialize_value(column_family.get(row_key, **kwargs))
 
     def delete(self, type, key, **kwargs):
-        self.delegate.d.remove(self.get_cf(type), key, **kwargs)
+        self.delegate.remove(self.get_cf(type), key, **kwargs)
 
     def insert(self, type, key, args, super_key=None):
-        if not self.delegate.d.cf_exists(type):
-            column_family = self.delegate.d.create_cf(type)
+        if not self.delegate.cf_exists(type):
+            column_family = self.delegate.create_cf(type)
 
         else:
-            column_family = self.delegate.d.get_cf(type)
+            column_family = self.delegate.get_cf(type)
         serialized = self.serialize_columns(args)
         if super_key is None:
             column_family.insert(key, serialized)
@@ -81,7 +84,7 @@ class DataStore(object):
         #probably need a different delimiter.
         #TODO: fix delimiter
         try:
-            num_columns = self.delegate.d.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start='%s__' % rel_type,
+            num_columns = self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start='%s__' % rel_type,
                                      column_finish='%s_`' % rel_type,)
             super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, column_start='%s__' % rel_type,
                                      column_finish='%s_`' % rel_type,
@@ -101,7 +104,7 @@ class DataStore(object):
         #probably need a different delimiter.
         #TODO: fix delimiter
         try:
-            num_columns = self.delegate.d.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start='%s__' % rel_type,
+            num_columns = self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start='%s__' % rel_type,
                                      column_finish='%s_`' % rel_type,)
 
             super_columns = self.get(INBOUND_RELATIONSHIP_CF, target_key, column_start='%s__' % rel_type,
@@ -203,7 +206,7 @@ class DataStore(object):
             self.insert(OUTBOUND_RELATIONSHIP_CF, source_key, {rel_key: serialized})
             self.insert(INBOUND_RELATIONSHIP_CF, target_key, {rel_key: serialized})
 
-            #            relationship_index_cf = self.delegate.d.get_cf(RELATIONSHIP_INDEX)
+            #            relationship_index_cf = self.delegate.get_cf(RELATIONSHIP_INDEX)
             # Add entries in the relationship index
             self.insert(RELATIONSHIP_INDEX, source_key, {target_node.key: {rel_type: '%s__outgoing' % rel_key}})
             self.insert(RELATIONSHIP_INDEX, target_key, {source_node.key: {rel_type: '%s__incoming' % rel_key}})
@@ -239,7 +242,7 @@ class DataStore(object):
         > node_a =
 
         """
-        index = self.delegate.d.get_cf(RELATIONSHIP_INDEX)
+        index = self.delegate.get_cf(RELATIONSHIP_INDEX)
         node_a_row_key = ENDPOINT_NAME_TEMPLATE % (node_a.type, node_a.key)
         rel_list = []
         try:
@@ -310,7 +313,7 @@ class DataStore(object):
 
             try:
                 next_start_id = ""
-                num_columns = self.delegate.d.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=next_start_id)
+                num_columns = self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=next_start_id)
                 outbound_results = self.get(OUTBOUND_RELATIONSHIP_CF, source_key,
                                             column_start=next_start_id, column_count=num_columns)
             except NotFoundException:
@@ -319,7 +322,7 @@ class DataStore(object):
             try:
                 next_start_id = ""
                 inbound_results = {}
-                num_columns = self.delegate.d.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start=next_start_id)
+                num_columns = self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start=next_start_id)
                 inbound_results = self.get(INBOUND_RELATIONSHIP_CF, target_key,
                                         column_start=next_start_id, column_count=num_columns)
             except NotFoundException:
@@ -390,7 +393,7 @@ class DataStore(object):
 
         clause = index.create_index_clause(expressions, start_key=start_key, count=row_count)
         try:
-            column_family = self.delegate.d.get_cf(type)
+            column_family = self.delegate.get_cf(type)
             rows = column_family.get_indexed_slices(clause, **kwargs)
         except NotFoundException:
             raise NodeNotFoundException()
@@ -468,32 +471,20 @@ class DataStore(object):
         if not item in self.__dict__:
             return getattr(self.delegate, item)
 
-    def search_index(self, type, index_names, query_string, num_results=-1):
-        try:
-            search_index_wrapper = getattr(self.delegate, 'search_index_wrapped')
-            return search_index_wrapper(type,index_names,query_string,self,num_results)
-        except PluginDisabled:
-            pass
-
-    def create_index(self, type, indexed_variables, index_name):
-        try:
-            create_index_wrapper = getattr(self.delegate, 'create_index_wrapped')
-            print create_index_wrapper
-            return create_index_wrapper(type,indexed_variables,index_name,self)
-        except PluginDisabled:
-            pass
-
-    def populate_index(self, type, index_name):
-        try:
-            populate_index_wrapper = getattr(self.delegate, 'populate_index')
-            return populate_index_wrapper(type, index_name, self)
-        except PluginDisabled:
-            pass
-
-def load_from_settings(settings, prefix='agamemnon.', es_server="33.33.33.10:9200"):
+def load_from_settings(settings, prefix='agamemnon.', es_server="33.33.33.10:9200",es_config = ""):
+    #plugin setup
     plugin_dict = {}
     if(es_server!='disable'):
-        plugin_dict['elastic_search'] = FullTextSearch(es_server)
-    delegate = Delegate(settings,prefix,plugin_dict)
+        plugin_dict['elastic_search'] = FullTextSearch(es_server,es_config)
+    #load delegate
+    if settings["%skeyspace" % prefix] == 'memory':
+        delegate = InMemoryDataStore()
+    else:
+        delegate = CassandraDataStore(settings['%skeyspace' % prefix],
+            pycassa.connect(settings["%skeyspace" % prefix],
+                json.loads(settings["%shost_list" % prefix])),
+                system_manager=pycassa.system_manager.SystemManager(
+                json.loads(settings["%shost_list" % prefix])[0]))
+    delegate.load_plugins(plugin_dict)
     return DataStore(delegate)
 

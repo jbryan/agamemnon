@@ -5,8 +5,9 @@ from pycassa.batch import Mutator
 from pycassa.cassandra.ttypes import NotFoundException
 from agamemnon.graph_constants import OUTBOUND_RELATIONSHIP_CF, INBOUND_RELATIONSHIP_CF, RELATIONSHIP_INDEX, RELATIONSHIP_CF
 import pycassa.columnfamily as cf
+from agamemnon.delegate import Delegate
 
-class CassandraDataStore(object):
+class CassandraDataStore(Delegate):
     def __init__(self, keyspace, pool, system_manager):
         self._cf_cache = {}
         self._index_cache = {}
