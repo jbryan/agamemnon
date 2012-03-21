@@ -321,22 +321,24 @@ class ElasticSearchTests(TestCase, AgamemnonTests):
         except Exception:
             pass
         cassandra.create_keyspace(host_list, keyspace)
-        self.ds = load_from_settings({
+        self.ds_cassa = load_from_settings({
             'agamemnon.host_list': host_list,
             "agamemnon.keyspace": keyspace
         })
+        #self.dsmem = load_from_settings({'agamemnon.keyspace': 'memory'})
+        node_type = 'node_test'
         try:
-            node1 = self.ds.get_node(node_type,'node_1')
-            self.ds.delete_node(node1)
+            node1 = self.ds_cassa.get_node(node_type,'node_1')
+            self.ds_cassa.delete_node(node1)
         except NodeNotFoundException:
             pass
         try:
-            node2 = self.ds.get_node(node_type,'node_2')
-            self.ds.delete_node(node2)
+            node2 = self.ds_cassa.get_node(node_type,'node_2')
+            self.ds_cassa.delete_node(node2)
         except NodeNotFoundException:
             pass
-        self.ds.delete_index_if_exists(ns_index_name)
-        self.ds.delete_index_if_exists(ns_new_name)
+        self.ds_cassa.delete_index_if_exists(ns_index_name)
+        self.ds_cassa.delete_index_if_exists(ns_new_name)
 
     def index_tests(self):
         node_type = 'node_test'
@@ -346,53 +348,53 @@ class ElasticSearchTests(TestCase, AgamemnonTests):
         ns_new_name = node_type + "__" + new_index_name
         args = ['integer','long','float','string']
         [key1,atr1] = self.create_node(node_type,1)
-        self.ds.create_index(node_type,args,index_name)
+        self.ds_cassa.create_index(node_type,args,index_name)
         #test to see if the index exists
-        self.failUnless(ns_index_name in self.ds.conn.get_indices())
+        self.failUnless(ns_index_name in self.ds_cassa.conn.get_indices())
         #test to see if search function works (also populate_indices)
-        node1 = self.ds.get_node(node_type,key1)
-        nodes_found = self.ds.search_index(node_type,index_name,'name1')
+        node1 = self.ds_cassa.get_node(node_type,key1)
+        nodes_found = self.ds_cassa.search_index(node_type,index_name,'name1')
         self.failUnless(node1 in nodes_found)
         self.failUnlessEqual(1,len(nodes_found))
-        nodes_found = self.ds.search_index(node_type,index_name,'1000')
+        nodes_found = self.ds_cassa.search_index(node_type,index_name,'1000')
         self.failUnless(node1 in nodes_found)
         self.failUnlessEqual(1,len(nodes_found))
         #test get_indices_of_type function
-        type_indices = self.ds.get_indices_of_type(node_type)
+        type_indices = self.ds_cassa.get_indices_of_type(node_type)
         self.failUnless(ns_index_name in type_indices)
         self.failUnlessEqual(1,len(type_indices))
         #test update_indices function
         [key2,atr2] = self.create_node(node_type,2)
-        node2 = self.ds.get_node(node_type,key2)
-        nodes_found = self.ds.search_index(node_type,index_name,'name2')
+        node2 = self.ds_cassa.get_node(node_type,key2)
+        nodes_found = self.ds_cassa.search_index(node_type,index_name,'name2')
         self.failUnless(node2 in nodes_found)
         self.failUnlessEqual(1,len(nodes_found))
-        nodes_found = self.ds.search_index(node_type,index_name,'1000')
+        nodes_found = self.ds_cassa.search_index(node_type,index_name,'1000')
         self.failUnless(node1 in nodes_found)
         self.failUnless(node2 in nodes_found)
         self.failUnlessEqual(2,len(nodes_found))
         #test modify_indices function
         new_args = ['string','new_attr']
-        self.ds.create_index(node_type,new_args,new_index_name)
-        nodes_found = self.ds.search_index(node_type,new_index_name,'new_value')
+        self.ds_cassa.create_index(node_type,new_args,new_index_name)
+        nodes_found = self.ds_cassa.search_index(node_type,new_index_name,'new_value')
         self.failUnlessEqual(0,len(nodes_found))
-        self.ds.create_node(node_type,'node_2',{'new_attr':'new_value'})
-        new_node2 = self.ds.get_node(node_type,'node_2')
-        nodes_found = self.ds.search_index(node_type,new_index_name,'new_value')
+        self.ds_cassa.create_node(node_type,'node_2',{'new_attr':'new_value'})
+        new_node2 = self.ds_cassa.get_node(node_type,'node_2')
+        nodes_found = self.ds_cassa.search_index(node_type,new_index_name,'new_value')
         self.failUnless(node1 not in nodes_found)
         self.failUnless(new_node2 in nodes_found)
         self.failUnlessEqual(1,len(nodes_found))
         #test remove_node function
-        self.ds.delete_node(new_node2)
-        nodes_found = self.ds.search_index(node_type,index_name,'1000')
+        self.ds_cassa.delete_node(new_node2)
+        nodes_found = self.ds_cassa.search_index(node_type,index_name,'1000')
         self.failUnlessEqual(1,len(nodes_found))
-        nodes_found = self.ds.search_index(node_type,index_name,'node_2')
+        nodes_found = self.ds_cassa.search_index(node_type,index_name,'node_2')
         self.failUnlessEqual(0,len(nodes_found))
         #test delete_index function
-        num_indices = len(self.ds.conn.get_indices())
-        self.ds.delete_index(node_type,index_name)
-        self.ds.delete_index(node_type,new_index_name)
-        self.failUnlessEqual(2,num_indices-len(self.ds.conn.get_indices()))
-        self.ds.delete_node(node1)
+        num_indices = len(self.ds_cassa.conn.get_indices())
+        self.ds_cassa.delete_index(node_type,index_name)
+        self.ds_cassa.delete_index(node_type,new_index_name)
+        self.failUnlessEqual(2,num_indices-len(self.ds_cassa.conn.get_indices()))
+        self.ds_cassa.delete_node(node1)
 
     #TODO: Write a series of tests for the plugin functionality of agamemnon

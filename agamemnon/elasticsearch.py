@@ -100,7 +100,6 @@ class FullTextSearch(object):
             except exceptions.NotFoundException:
                 pass
            
-    #find a given node and modify it in all the indices it is in
     def on_modify(self, node):
         type_indices = self.get_indices_of_type(node.type)
         for ns_index_name in type_indices:
