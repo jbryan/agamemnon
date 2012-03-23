@@ -471,11 +471,11 @@ class DataStore(object):
         if not item in self.__dict__:
             return getattr(self.delegate, item)
 
-def load_from_settings(settings, prefix='agamemnon.', es_server="33.33.33.10:9200",es_config = ""):
+def load_from_settings(settings, prefix='agamemnon.'):
     #plugin setup
     plugin_dict = {}
-    if(es_server!='disable'):
-        plugin_dict['elastic_search'] = FullTextSearch(es_server,es_config)
+    if(settings['es_server']!='disable'):
+        plugin_dict['elastic_search'] = FullTextSearch(settings['es_server'],settings['es_config'])
     #load delegate
     if settings["%skeyspace" % prefix] == 'memory':
         delegate = InMemoryDataStore()

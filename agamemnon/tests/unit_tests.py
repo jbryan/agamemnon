@@ -298,6 +298,7 @@ class CassandraTests(TestCase, AgamemnonTests):
     def setUp(self):
         host_list = '["localhost:9160"]'
         keyspace = 'agamemnontests'
+        es_server = '33.33.33.10:9200'
         try:
             cassandra.drop_keyspace(host_list, keyspace)
         except Exception:
@@ -306,16 +307,19 @@ class CassandraTests(TestCase, AgamemnonTests):
         self.ds = load_from_settings({
             'agamemnon.host_list': host_list,
             "agamemnon.keyspace": keyspace
+            'es_server':es_server
+            'es_config':''
         })
 
 class InMemoryTests(TestCase, AgamemnonTests):
     def setUp(self):
-        self.ds = load_from_settings({'agamemnon.keyspace': 'memory'})
+        self.ds = load_from_settings({'agamemnon.keyspace': 'memory','es_server':'33.33.33.10:9200','es_config':''})
 
 class ElasticSearchTests(TestCase, AgamemnonTests):
     def setUp(self):
         host_list = '["localhost:9160"]'
         keyspace = 'agamemnontests'
+        es_server = '33.33.33.10:9200'
         try:
             cassandra.drop_keyspace(host_list, keyspace)
         except Exception:
@@ -324,6 +328,8 @@ class ElasticSearchTests(TestCase, AgamemnonTests):
         self.ds_cassa = load_from_settings({
             'agamemnon.host_list': host_list,
             "agamemnon.keyspace": keyspace
+            'es_server':es_server
+            'es_config':''
         })
         #self.dsmem = load_from_settings({'agamemnon.keyspace': 'memory'})
         node_type = 'node_test'
