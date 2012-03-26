@@ -477,7 +477,7 @@ def load_from_settings(settings, prefix='agamemnon.'):
     try:
         if(settings['es_server']!='disable'):
             plugin_dict['elastic_search'] = FullTextSearch(settings['es_server'],settings['es_config'])
-    except AttributeError:
+    except KeyError:
         pass
     #load delegate
     if settings["%skeyspace" % prefix] == 'memory':
