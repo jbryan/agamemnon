@@ -474,8 +474,11 @@ class DataStore(object):
 def load_from_settings(settings, prefix='agamemnon.'):
     #plugin setup
     plugin_dict = {}
-    if(settings['es_server']!='disable'):
-        plugin_dict['elastic_search'] = FullTextSearch(settings['es_server'],settings['es_config'])
+    try:
+        if(settings['es_server']!='disable'):
+            plugin_dict['elastic_search'] = FullTextSearch(settings['es_server'],settings['es_config'])
+    except AttributeError:
+        pass
     #load delegate
     if settings["%skeyspace" % prefix] == 'memory':
         delegate = InMemoryDataStore()
