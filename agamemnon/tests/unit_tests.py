@@ -334,8 +334,8 @@ class ElasticSearchTests(TestCase, AgamemnonTests):
         node_type = 'node_test'
         index_name = "test_index"
         new_index_name = "new_index"
-        ns_index_name = node_type + "__" + index_name
-        ns_new_name = node_type + "__" + new_index_name
+        ns_index_name = node_type + "-_-" + index_name
+        ns_new_name = node_type + "-_-" + new_index_name
         try:
             node1 = self.ds.get_node(node_type,'node_1')
             self.ds.delete_node(node1)
@@ -353,8 +353,8 @@ class ElasticSearchTests(TestCase, AgamemnonTests):
         node_type = 'node_test'
         index_name = "test_index"
         new_index_name = "new_index"
-        ns_index_name = node_type + "__" + index_name
-        ns_new_name = node_type + "__" + new_index_name
+        ns_index_name = node_type + "-_-" + index_name
+        ns_new_name = node_type + "-_-" + new_index_name
         args = ['integer','long','float','string']
         [key1,atr1] = self.create_node(node_type,1)
         self.ds.create_index(node_type,args,index_name)
