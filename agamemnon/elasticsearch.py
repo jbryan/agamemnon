@@ -12,6 +12,7 @@ class FullTextSearch(object):
         if(es_config!=""):
             fp = open(es_config,'r')
             self.settings = json.load(fp)
+            fp.close()
         else:
             self.settings = { 
                 'index': {
