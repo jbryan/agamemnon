@@ -6,10 +6,9 @@ import json
 
 class Delegate(object):
     def __init__(self):
-        pass
+        self.plugins = []
 
     def load_plugins(self,plugin_dict):
-        self.plugins = []
         for key,plugin in plugin_dict.items():
             self.__dict__[key]=plugin
             self.plugins.append(key)

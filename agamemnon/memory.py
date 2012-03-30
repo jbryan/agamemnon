@@ -10,6 +10,7 @@ log = logging.getLogger()
 
 class InMemoryDataStore(Delegate):
     def __init__(self):
+        super(InMemoryDataStore,self).__init__()
         self.tables = {}
         self.transactions = {}
         self.batch_count = 0

@@ -9,6 +9,7 @@ from agamemnon.delegate import Delegate
 
 class CassandraDataStore(Delegate):
     def __init__(self, keyspace, pool, system_manager):
+        super(CassandraDataStore,self).__init__()
         self._cf_cache = {}
         self._index_cache = {}
         self._system_manager = system_manager
