@@ -11,8 +11,8 @@ log = logging.getLogger()
 class InMemoryDataStore(Delegate):
     def __init__(self):
         super(InMemoryDataStore,self).__init__()
-        self.tables = {}
-        self.transactions = {}
+        self.tables = OrderedDict()
+        self.transactions = []
         self.batch_count = 0
         self.in_batch = False
 
@@ -41,7 +41,7 @@ class InMemoryDataStore(Delegate):
             cf.insert(row, columns)
 
         if self.in_batch:
-            self.transactions[('insert', cf.name, row, tuple(columns.keys()))] = execute
+            self.transactions.append(execute)
         else:
             execute()
 
@@ -50,30 +50,20 @@ class InMemoryDataStore(Delegate):
             cf.remove(row, columns=columns, super_column=super_column)
             
         if self.in_batch:
-            if columns is not None and super_column is not None\
-            and not ('remove', cf.name, row, super_column) in self.transactions.keys():
-                key = ('remove', cf.name, row, tuple(columns), super_column)
-            elif columns is not None and not ('remove', cf.name, row) in self.transactions.keys():
-                key = ('remove', cf.name, row, tuple(columns))
-            elif super_column is not None:
-                key = ('remove', cf.name, row, super_column)
-            else:
-                key = ('remove', cf.name, row)
-            if not key in self.transactions.keys() and not ('remove', cf.name, row) in self.transactions.keys():
-                self.transactions[key] = execute
+            self.transactions.append(execute)
         else:
             execute()
 
-    def start_batch(self):
+    def start_batch(self, queue_size = 0):
         self.in_batch = True
         self.batch_count += 1
 
     def commit_batch(self):
         self.batch_count -= 1
         if not self.batch_count:
-            for key, value in self.transactions.items():
-                value()
-            self.transactions.clear()
+            for item in self.transactions:
+                item()
+            self.transactions = []
             self.in_batch = False
 
 
@@ -85,78 +75,38 @@ class ColumnFamily(object):
         self.super = super
 
     def get_count(self, row, columns=None, column_start=None, super_column=None, column_finish=None):
-        try:
-            if columns is None and column_start is None and super_column is None:
-                results = self.data[row]
-            else:
-                if super_column is None:
-                    data_columns = self.data[row]
-                else:
-                    data_columns = self.data[row][super_column]
-                results = {}
-                count = 0
-                if columns is not None:
-                    for c in columns:
-                        results[c] = data_columns[c]
-                else:
-                    for c in data_columns.keys():
-                        if column_start is not None and column_finish is not None:
-                            if ((cmp(c, column_start) > 0
-                                and cmp(c, column_finish) < 0)
-                                or cmp(c, column_finish) == 0
-                                or cmp(c, column_start) == 0):
-
-                                results[c] = data_columns[c]
-                                count += 1
-                        else:
-                            results[c] = data_columns[c]
-                            count += 1
-            if not len(results):
-                raise NotFoundException
-            for key, value in results.items():
-                if isinstance(value, dict) and len(value) == 0:
-                    del(results[key])
-                if value is None:
-                    del(results[key])
-            return len(results)
-        except KeyError:
-            raise NotFoundException
+        count = float("inf")
+        results = self.get(row, columns, column_start, super_column, column_finish, count)
+        return len(results)
 
     def multiget(self, row_keys, **kwargs):
-        return dict([
+        return OrderedDict([
             (row, self.get(row, **kwargs))
             for row in row_keys
         ])
         
     def get(self, row, columns=None, column_start=None, super_column=None, column_finish=None, column_count=100):
         try:
-            if columns is None and column_start is None and super_column is None:
-                results = self.data[row]
+            if super_column is None:
+                data_columns = self.data[row]
             else:
-                if super_column is None:
-                    data_columns = self.data[row]
-                else:
-                    data_columns = self.data[row][super_column]
-                results = {}
-                count = 0
-                if columns is not None:
-                    for c in columns:
-                        results[c] = data_columns[c]
-                else:
-                    for c in data_columns.keys():
-                        if count > column_count:
-                            break
-                        if column_start is not None and column_finish is not None:
-                            if ((cmp(c, column_start) > 0
-                                and cmp(c, column_finish) < 0)
-                                or cmp(c, column_finish) == 0
-                                or cmp(c, column_start) == 0):
+                data_columns = self.data[row][super_column]
+            results = OrderedDict()
+            count = 0
+            if columns is not None:
+                for c in columns:
+                    results[c] = data_columns[c]
+            else:
+                for c in sorted(data_columns.keys()):
+                    if count > column_count:
+                        break
+                    if column_start and cmp(c,column_start) < 0:
+                        continue
+                    if column_finish and cmp(c, column_finish) > 0:
+                        break
 
-                                results[c] = data_columns[c]
-                                count += 1
-                        else:
-                            results[c] = data_columns[c]
-                            count += 1
+                    results[c] = data_columns[c]
+                    count += 1
             if not len(results):
                 raise NotFoundException
             for key, value in results.items():

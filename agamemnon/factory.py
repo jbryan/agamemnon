@@ -5,6 +5,7 @@ import uuid
 import datetime
 from dateutil.parser import parse as date_parse
 from pycassa.cassandra.ttypes import NotFoundException
+from pycassa.util import OrderedDict
 from pycassa import index
 from agamemnon.graph_constants import RELATIONSHIP_KEY_PATTERN, OUTBOUND_RELATIONSHIP_CF, RELATIONSHIP_INDEX, ENDPOINT_NAME_TEMPLATE, INBOUND_RELATIONSHIP_CF, RELATIONSHIP_CF
 import pycassa
@@ -26,8 +27,8 @@ class DataStore(object):
             plugin_object.datastore = self
 
     @contextmanager
-    def batch(self):
-        self.delegate.start_batch()
+    def batch(self, queue_size = 0):
+        self.delegate.start_batch(queue_size = queue_size)
         yield
         self.delegate.commit_batch()
 
@@ -53,29 +54,73 @@ class DataStore(object):
             column_family = self.delegate.get_cf(type)
         serialized = self.serialize_columns(args)
         if super_key is None:
-            column_family.insert(key, serialized)
+            self.delegate.insert(column_family, key, serialized)
         else:
-            column_family.insert(key, {super_key: serialized})
+            self.delegate.insert(column_family, key, {super_key: serialized})
 
-    def get_all_outgoing_relationships(self, source_node, count=100):
+    def get_outgoing_relationship_count(self, source_node, relationship_type):
+        column_start = '%s__' % relationship_type
         source_key = RELATIONSHIP_KEY_PATTERN % (source_node.type, source_node.key)
         try:
-            super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, column_count=count)
+            return self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=column_start,
+                                     column_finish='%s_`' % relationship_type)
         except NotFoundException:
-            super_columns = {}
-        return [self.get_outgoing_relationship(super_column[1]['rel_type'], source_node, super_column) for super_column in
-                super_columns.items() if len(super_column[1]) > 0]
+            return 0
 
-    def get_all_incoming_relationships(self, target_node, count=100):
-        source_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
+    def get_incoming_relationship_count(self, target_node, relationship_type):
+        column_start = '%s__' % relationship_type
+        target_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
         try:
-            super_columns = self.get(INBOUND_RELATIONSHIP_CF, source_key, column_count=count)
+            return self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start=column_start,
+                                     column_finish='%s_`' % relationship_type)
         except NotFoundException:
-            super_columns = {}
-        return [self.get_incoming_relationship(super_column[1]['rel_type'], target_node, super_column) for super_column in
-                super_columns.items() if len(super_column[1]) > 0]
+            return 0
+    
+    def get_all_outgoing_relationship_count(self,source_node):
+        source_key = RELATIONSHIP_KEY_PATTERN % (source_node.type, source_node.key)
+        return self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key)
 
-    def get_outgoing_relationships(self, source_node, rel_type, count=100):
+    def get_all_incoming_relationship_count(self, target_node):
+        target_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
+        return self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key)
+
+    def get_all_outgoing_relationships(self, source_node, column_count=500):
+        source_key = RELATIONSHIP_KEY_PATTERN % (source_node.type, source_node.key)
+        try:
+            column_start = None
+            while True:
+                args = {'column_count': column_count}
+                if column_start is not None:
+                    args['column_start'] = column_start
+                super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, **args)
+                for super_column in super_columns.items():
+                    if super_column[0] == column_start: continue
+                    yield self.get_outgoing_relationship(super_column[1]['rel_type'], source_node, super_column)
+                if len(super_columns) < column_count:
+                    return
+                column_start = super_columns.items()[-1][0]
+        except NotFoundException:
+            return
+
+    def get_all_incoming_relationships(self, target_node, column_count=500):
+        target_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
+        try:
+            column_start = None
+            while True:
+                args = {'column_count': column_count}
+                if column_start is not None:
+                    args['column_start'] = column_start
+                super_columns = self.get(INBOUND_RELATIONSHIP_CF, target_key, **args)
+                for super_column in super_columns.items():
+                    if super_column[0] == column_start: continue
+                    yield self.get_incoming_relationship(super_column[1]['rel_type'], target_node, super_column)
+                if len(super_columns) < column_count:
+                    return
+                column_start = super_columns.items()[-1][0]
+        except NotFoundException:
+            return
+        
+    def get_outgoing_relationships(self, source_node, rel_type, count=500):
         source_key = RELATIONSHIP_KEY_PATTERN % (source_node.type, source_node.key)
         #Ok, this is weird.  So in order to get a column slice, you need to provide a start that is <= your first column
         #id, and a finish which is >= your last column.  Since our columns are sorted by ascii, this means we need to go
@@ -84,18 +129,21 @@ class DataStore(object):
         #probably need a different delimiter.
         #TODO: fix delimiter
         try:
-            num_columns = self.delegate.get_count(OUTBOUND_RELATIONSHIP_CF, source_key, column_start='%s__' % rel_type,
-                                     column_finish='%s_`' % rel_type,)
-            super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, column_start='%s__' % rel_type,
-                                     column_finish='%s_`' % rel_type,
-                                     column_count=num_columns)
+            column_start = '%s__' % rel_type
+            while True:
+                super_columns = self.get(OUTBOUND_RELATIONSHIP_CF, source_key, column_start=column_start,
+                                     column_finish='%s_`' % rel_type, column_count=count)
+                for super_column in super_columns.items():
+                    if super_column[0] == column_start: continue
+                    yield self.get_outgoing_relationship(rel_type, source_node, super_column)
+                if len(super_columns) < count:
+                    return
+                column_start = super_columns.items()[-1][0]
         except NotFoundException:
-            super_columns = {}
-        return [self.get_outgoing_relationship(rel_type, source_node, super_column) for super_column in
-                super_columns.items()]
+            return
 
 
-    def get_incoming_relationships(self, target_node, rel_type, count=100):
+    def get_incoming_relationships(self, target_node, rel_type, count=500):
         target_key = RELATIONSHIP_KEY_PATTERN % (target_node.type, target_node.key)
         #Ok, this is weird.  So in order to get a column slice, you need to provide a start that is <= your first column
         #id, and a finish which is >= your last column.  Since our columns are sorted by ascii, this means we need to go
@@ -104,16 +152,19 @@ class DataStore(object):
         #probably need a different delimiter.
         #TODO: fix delimiter
         try:
-            num_columns = self.delegate.get_count(INBOUND_RELATIONSHIP_CF, target_key, column_start='%s__' % rel_type,
-                                     column_finish='%s_`' % rel_type,)
-
-            super_columns = self.get(INBOUND_RELATIONSHIP_CF, target_key, column_start='%s__' % rel_type,
-                                     column_finish='%s_`' % rel_type,
-                                     column_count=num_columns)
+            column_start = '%s__' % rel_type
+            while True:
+                super_columns = self.get(INBOUND_RELATIONSHIP_CF, target_key, column_start=column_start,
+                                     column_finish='%s_`' % rel_type, column_count=count)
+                for super_column in super_columns.items():
+                    if super_column[0] == column_start: continue
+                    yield self.get_incoming_relationship(rel_type, target_node, super_column)
+                if len(super_columns) < count:
+                    return
+                column_start = super_columns.items()[-1][0]
         except NotFoundException:
-            super_columns = {}
-        return [self.get_incoming_relationship(rel_type, target_node, super_column) for super_column in
-                super_columns.items()]
+            return
+
 
     def get_outgoing_relationship(self, rel_type, source_node, super_column):
         """
@@ -242,7 +293,6 @@ class DataStore(object):
         > node_a =
 
         """
-        index = self.delegate.get_cf(RELATIONSHIP_INDEX)
         node_a_row_key = ENDPOINT_NAME_TEMPLATE % (node_a.type, node_a.key)
         rel_list = []
         try:
@@ -265,6 +315,8 @@ class DataStore(object):
         return rel_list
 
     def create_node(self, type, key, args=None, reference=False):
+        if args is None:
+            args = {}
         try:
             node = self.get_node(type, key)
             node.attributes.update(args)
@@ -272,8 +324,6 @@ class DataStore(object):
             self.delegate.on_modify(node)
             return node
         except NodeNotFoundException:
-            if args is None:
-                args = {}
             #since node won't get created without args, we will include __id by default
             args["__id"] = key
             serialized = self.serialize_columns(args)
@@ -398,7 +448,7 @@ class DataStore(object):
         except NotFoundException:
             raise NodeNotFoundException()
         return [
-            prim.Node(self, type, key, values)
+            prim.Node(self, type, key, self.deserialize_value(values))
             for key, values in rows
         ]
 
@@ -458,12 +508,12 @@ class DataStore(object):
             return value
 
     def deserialize_columns(self, columns):
-        return dict([(key, self.deserialize_value(value))
+        return OrderedDict([(key, self.deserialize_value(value))
         for key, value in columns.items()
         if value is not None])
 
     def serialize_columns(self, columns):
-        return dict([(key, self.serialize_value(value))
+        return OrderedDict([(key, self.serialize_value(value))
         for key, value in columns.items()
         if value is not None])
 
@@ -490,4 +540,3 @@ def load_from_settings(settings, prefix='agamemnon.'):
                 json.loads(settings["%shost_list" % prefix])[0]))
     delegate.load_plugins(plugin_dict)
     return DataStore(delegate)
-

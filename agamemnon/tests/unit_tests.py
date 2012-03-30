@@ -148,28 +148,31 @@ class AgamemnonTests(object):
         self.ds.create_secondary_index("indexed","color")
         self.ds.create_secondary_index("indexed","size")
 
-        self.ds.create_node("indexed", "a", { "color": "red", "size": "small" })
-        self.ds.create_node("indexed", "b", { "color": "black", "size": "small" })
-        self.ds.create_node("indexed", "c", { "color": "green", "size": "small" })
-        self.ds.create_node("indexed", "e", { "color": "red", "size": "big" })
-        self.ds.create_node("indexed", "f", { "color": "black", "size": "big" })
-        self.ds.create_node("indexed", "g", { "color": "green", "size": "big" })
+        self.ds.create_node("indexed", "a", { "color": "red", "size": "small" , "num" : 1.0})
+        self.ds.create_node("indexed", "b", { "color": "black", "size": "small" , "num" : 1.0 })
+        self.ds.create_node("indexed", "c", { "color": "green", "size": "small" , "num" : 1.0 })
+        self.ds.create_node("indexed", "e", { "color": "red", "size": "big" , "num" : 1.0 })
+        self.ds.create_node("indexed", "f", { "color": "black", "size": "big" , "num" : 1.0 })
+        self.ds.create_node("indexed", "g", { "color": "green", "size": "big" , "num" : 1.0 })
         
 
         nodes = self.ds.get_nodes_by_attr("indexed", {"color": "red"})
         self.assertEqual(len(nodes), 2)
         for node in nodes:
             self.assertTrue(node.key in ["a","e"])
+            self.assertEqual(type(node["num"]), type(1.0))
 
         nodes = self.ds.get_nodes_by_attr("indexed", {"size": "big"})
         self.assertEqual(len(nodes), 3)
         for node in nodes:
             self.assertTrue(node.key in ["e","f","g"])
+            self.assertEqual(type(node["num"]), type(1.0))
 
         nodes = self.ds.get_nodes_by_attr("indexed", {"size": "big", "color":"red"})
         self.assertEqual(len(nodes), 1)
         for node in nodes:
             self.assertTrue(node.key in ["e"])
+            self.assertEqual(type(node["num"]), type(1.0))
 
     def test_update_relationship_indexes(self):
         self.ds.create_node("source", "A")
@@ -293,6 +296,40 @@ class AgamemnonTests(object):
                 self.failIf(deleted_rel in target_incoming_relationships)
 
 
+    def test_large_relationship_sets(self):
+        num = 1002
+        node_type = "type_a"
+
+        root = self.ds.create_node('root', 'root')
+        node_list = [
+            self.ds.create_node(node_type, str(i))
+            for i in xrange(num)
+        ]
+
+
+        for node in node_list:
+            node.into(root)
+            root.outof(node)
+
+        self.assertEqual(1, len(root.instance.incoming))
+
+        self.assertEqual(num, len([rel for rel in root.outof.outgoing]))
+        self.assertEqual(num, len([rel for rel in root.into.incoming]))
+        self.assertEqual(num, len(root.outof.outgoing))
+        self.assertEqual(num, len(root.into.incoming))
+
+        self.assertEqual(num, len([rel for rel in root.outof]))
+        self.assertEqual(num, len([rel for rel in root.into]))
+        self.assertEqual(num, len(root.outof))
+        self.assertEqual(num, len(root.into))
+
+        self.assertEqual(num, len([rel for rel in root.relationships.outgoing]))
+        self.assertEqual(num + 1, len([rel for rel in root.relationships.incoming]))
+        self.assertEqual(num, len(root.relationships.outgoing))
+        self.assertEqual(num + 1, len(root.relationships.incoming))
+
+        self.assertEqual(2*num + 1, len([rel for rel in root.relationships]))
+        self.assertEqual(2*num + 1, len(root.relationships))
 
 class CassandraTests(TestCase, AgamemnonTests):
     def setUp(self):
