@@ -4,3 +4,6 @@ class NoTransactionError(Exception):
 
 class NodeNotFoundException(Exception):
     pass
+
+class PluginDisabled(Exception):
+    pass

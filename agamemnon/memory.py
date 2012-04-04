@@ -4,11 +4,13 @@ from pycassa.cassandra.ttypes import NotFoundException
 from pycassa.index import LT, LTE, EQ, GTE, GT
 from agamemnon.graph_constants import ASCII
 import logging
+from agamemnon.delegate import Delegate
 
 log = logging.getLogger()
 
-class InMemoryDataStore(object):
+class InMemoryDataStore(Delegate):
     def __init__(self):
+        super(InMemoryDataStore,self).__init__()
         self.tables = OrderedDict()
         self.transactions = []
         self.batch_count = 0

@@ -11,9 +11,10 @@ from agamemnon.graph_constants import RELATIONSHIP_KEY_PATTERN, OUTBOUND_RELATIO
 import pycassa
 from agamemnon.cassandra import CassandraDataStore
 from agamemnon.memory import InMemoryDataStore
-from agamemnon.exceptions import NodeNotFoundException
+from agamemnon.exceptions import NodeNotFoundException, PluginDisabled
 import agamemnon.primitives as prim
-
+from agamemnon.delegate import Delegate
+from agamemnon.elasticsearch import FullTextSearch
 import logging
 
 log = logging.getLogger(__name__)
@@ -21,6 +22,9 @@ log = logging.getLogger(__name__)
 class DataStore(object):
     def __init__(self, delegate):
         self.delegate = delegate
+        for plugin in self.delegate.plugins:
+            plugin_object = self.delegate.__dict__[plugin]
+            plugin_object.datastore = self
 
     @contextmanager
     def batch(self, queue_size = 0):
@@ -45,6 +49,7 @@ class DataStore(object):
     def insert(self, type, key, args, super_key=None):
         if not self.delegate.cf_exists(type):
             column_family = self.delegate.create_cf(type)
+
         else:
             column_family = self.delegate.get_cf(type)
         serialized = self.serialize_columns(args)
@@ -316,6 +321,7 @@ class DataStore(object):
             node = self.get_node(type, key)
             node.attributes.update(args)
             self.save_node(node)
+            self.delegate.on_modify(node)
             return node
         except NodeNotFoundException:
             #since node won't get created without args, we will include __id by default
@@ -328,10 +334,12 @@ class DataStore(object):
                 #that reference node functions as an index to easily access all nodes of a specific type
                 reference_node = self.get_reference_node(type)
                 reference_node.instance(node, key=key)
+            self.delegate.on_create(node)
             return node
 
     def delete_node(self, node):
         relationships = node.relationships
+        self.delegate.on_delete(node)
         with self.batch():
            for rel in relationships:
                 rel.delete()
@@ -513,14 +521,22 @@ class DataStore(object):
         if not item in self.__dict__:
             return getattr(self.delegate, item)
 
-
 def load_from_settings(settings, prefix='agamemnon.'):
+    #plugin setup
+    plugin_dict = {}
+    try:
+        if(settings['es_server']!='disable'):
+            plugin_dict['elastic_search'] = FullTextSearch(settings['es_server'],settings['es_config'])
+    except KeyError:
+        pass
+    #load delegate
     if settings["%skeyspace" % prefix] == 'memory':
-        ds_to_wrap = InMemoryDataStore()
+        delegate = InMemoryDataStore()
     else:
-        ds_to_wrap = CassandraDataStore(settings['%skeyspace' % prefix],
-                                        pycassa.pool.ConnectionPool(settings["%skeyspace" % prefix],
-                                                        json.loads(settings["%shost_list" % prefix])),
-                                        system_manager=pycassa.system_manager.SystemManager(
-                                            json.loads(settings["%shost_list" % prefix])[0]))
-    return DataStore(ds_to_wrap)
+        delegate = CassandraDataStore(settings['%skeyspace' % prefix],
+            pycassa.connect(settings["%skeyspace" % prefix],
+                json.loads(settings["%shost_list" % prefix])),
+                system_manager=pycassa.system_manager.SystemManager(
+                json.loads(settings["%shost_list" % prefix])[0]))
+    delegate.load_plugins(plugin_dict)
+    return DataStore(delegate)

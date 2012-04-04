@@ -4,6 +4,7 @@ from unittest import TestCase
 from agamemnon import cassandra
 from agamemnon.factory import load_from_settings
 from agamemnon.primitives import updating_node
+from agamemnon.exceptions import NodeNotFoundException
 
 class AgamemnonTests(object):
     def create_node(self, node_type, id):
@@ -21,6 +22,8 @@ class AgamemnonTests(object):
         self.failUnlessEqual(key, node.key)
         self.failUnlessEqual(node_type, node.type)
         return key, attributes
+    
+    
 
     def containment(self, node_type, node):
         reference_node = self.ds.get_reference_node(node_type)
@@ -332,6 +335,7 @@ class CassandraTests(TestCase, AgamemnonTests):
     def setUp(self):
         host_list = '["localhost:9160"]'
         keyspace = 'agamemnontests'
+        es_server = '33.33.33.10:9200'
         try:
             cassandra.drop_keyspace(host_list, keyspace)
         except Exception:
@@ -339,9 +343,103 @@ class CassandraTests(TestCase, AgamemnonTests):
         cassandra.create_keyspace(host_list, keyspace)
         self.ds = load_from_settings({
             'agamemnon.host_list': host_list,
-            "agamemnon.keyspace": keyspace
+            "agamemnon.keyspace": keyspace,
+            'es_server':es_server,
+            'es_config':''
         })
 
 class InMemoryTests(TestCase, AgamemnonTests):
     def setUp(self):
-        self.ds = load_from_settings({'agamemnon.keyspace': 'memory'})
+        self.ds = load_from_settings({'agamemnon.keyspace': 'memory','es_server':'33.33.33.10:9200','es_config':''})
+
+class ElasticSearchTests(TestCase, AgamemnonTests):
+    def setUp(self):
+        host_list = '["localhost:9160"]'
+        keyspace = 'agamemnontests'
+        es_server = '33.33.33.10:9200'
+        try:
+            cassandra.drop_keyspace(host_list, keyspace)
+        except Exception:
+            pass
+        cassandra.create_keyspace(host_list, keyspace)
+        self.ds = load_from_settings({
+            'agamemnon.host_list': host_list,
+            "agamemnon.keyspace": keyspace,
+            'es_server': es_server,
+            'es_config':""
+        })
+        node_type = 'node_test'
+        index_name = "test_index"
+        new_index_name = "new_index"
+        ns_index_name = node_type + "-_-" + index_name
+        ns_new_name = node_type + "-_-" + new_index_name
+        try:
+            node1 = self.ds.get_node(node_type,'node_1')
+            self.ds.delete_node(node1)
+        except NodeNotFoundException:
+            pass
+        try:
+            node2 = self.ds.get_node(node_type,'node_2')
+            self.ds.delete_node(node2)
+        except NodeNotFoundException:
+            pass
+        self.ds.conn.delete_index_if_exists(ns_index_name)
+        self.ds.conn.delete_index_if_exists(ns_new_name)
+
+    def index_tests(self):
+        node_type = 'node_test'
+        index_name = "test_index"
+        new_index_name = "new_index"
+        ns_index_name = node_type + "-_-" + index_name
+        ns_new_name = node_type + "-_-" + new_index_name
+        args = ['integer','long','float','string']
+        [key1,atr1] = self.create_node(node_type,1)
+        self.ds.create_index(node_type,args,index_name)
+        #test to see if the index exists
+        self.failUnless(ns_index_name in self.ds.conn.get_indices())
+        #test to see if search function works (also populate_indices)
+        node1 = self.ds.get_node(node_type,key1)
+        nodes_found = self.ds.search_index(node_type,index_name,'name1')
+        self.failUnless(node1 in nodes_found)
+        self.failUnlessEqual(1,len(nodes_found))
+        nodes_found = self.ds.search_index(node_type,index_name,'1000')
+        self.failUnless(node1 in nodes_found)
+        self.failUnlessEqual(1,len(nodes_found))
+        #test get_indices_of_type function
+        type_indices = self.ds.get_indices_of_type(node_type)
+        self.failUnless(ns_index_name in type_indices)
+        self.failUnlessEqual(1,len(type_indices))
+        #test update_indices function
+        [key2,atr2] = self.create_node(node_type,2)
+        node2 = self.ds.get_node(node_type,key2)
+        nodes_found = self.ds.search_index(node_type,index_name,'name2')
+        self.failUnless(node2 in nodes_found)
+        self.failUnlessEqual(1,len(nodes_found))
+        nodes_found = self.ds.search_index(node_type,index_name,'1000')
+        self.failUnless(node1 in nodes_found)
+        self.failUnless(node2 in nodes_found)
+        self.failUnlessEqual(2,len(nodes_found))
+        #test modify_indices function
+        new_args = ['string','new_attr']
+        self.ds.create_index(node_type,new_args,new_index_name)
+        nodes_found = self.ds.search_index(node_type,new_index_name,'new_value')
+        self.failUnlessEqual(0,len(nodes_found))
+        self.ds.create_node(node_type,'node_2',{'new_attr':'new_value'})
+        new_node2 = self.ds.get_node(node_type,'node_2')
+        nodes_found = self.ds.search_index(node_type,new_index_name,'new_value')
+        self.failUnless(node1 not in nodes_found)
+        self.failUnless(new_node2 in nodes_found)
+        self.failUnlessEqual(1,len(nodes_found))
+        #test remove_node function
+        self.ds.delete_node(new_node2)
+        nodes_found = self.ds.search_index(node_type,index_name,'1000')
+        self.failUnlessEqual(1,len(nodes_found))
+        nodes_found = self.ds.search_index(node_type,index_name,'node_2')
+        self.failUnlessEqual(0,len(nodes_found))
+        #test delete_index function
+        num_indices = len(self.ds.conn.get_indices())
+        self.ds.delete_index(node_type,index_name)
+        self.ds.delete_index(node_type,new_index_name)
+        self.failUnlessEqual(2,num_indices-len(self.ds.conn.get_indices()))
+        self.ds.delete_node(node1)
+
