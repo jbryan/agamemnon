@@ -1,8 +1,6 @@
 from pyes.es import ES
 from pyes import exceptions
 from pyes.query import WildcardQuery
-from agamemnon.exceptions import NodeNotFoundException
-import string
 import json
 
 class FullTextSearch(object):

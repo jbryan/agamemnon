@@ -1,7 +1,4 @@
-from agamemnon.elasticsearch import FullTextSearch
 from agamemnon.exceptions import PluginDisabled
-import pycassa
-import json
 
 
 class Delegate(object):

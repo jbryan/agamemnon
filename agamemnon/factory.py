@@ -11,10 +11,8 @@ from agamemnon.graph_constants import RELATIONSHIP_KEY_PATTERN, OUTBOUND_RELATIO
 import pycassa
 from agamemnon.cassandra import CassandraDataStore
 from agamemnon.memory import InMemoryDataStore
-from agamemnon.exceptions import NodeNotFoundException, PluginDisabled
+from agamemnon.exceptions import NodeNotFoundException
 import agamemnon.primitives as prim
-from agamemnon.delegate import Delegate
-from agamemnon.elasticsearch import FullTextSearch
 import logging
 
 log = logging.getLogger(__name__)
@@ -526,6 +524,7 @@ def load_from_settings(settings, prefix='agamemnon.'):
     plugin_dict = {}
     try:
         if(settings['es_server']!='disable'):
+            from agamemnon.elasticsearch import FullTextSearch
             plugin_dict['elastic_search'] = FullTextSearch(settings['es_server'],settings['es_config'])
     except KeyError:
         pass
