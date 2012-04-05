@@ -532,10 +532,10 @@ def load_from_settings(settings, prefix='agamemnon.'):
     if settings["%skeyspace" % prefix] == 'memory':
         delegate = InMemoryDataStore()
     else:
-        delegate = CassandraDataStore(settings['%skeyspace' % prefix],
-            pycassa.connect(settings["%skeyspace" % prefix],
-                json.loads(settings["%shost_list" % prefix])),
-                system_manager=pycassa.system_manager.SystemManager(
-                json.loads(settings["%shost_list" % prefix])[0]))
+        delegate = CassandraDataStore(
+            settings['%skeyspace' % prefix],
+            pycassa.pool.ConnectionPool(settings["%skeyspace" % prefix], json.loads(settings["%shost_list" % prefix])),
+            system_manager=pycassa.system_manager.SystemManager(json.loads(settings["%shost_list" % prefix])[0])
+        )
     delegate.load_plugins(plugin_dict)
     return DataStore(delegate)
