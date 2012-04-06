@@ -335,7 +335,7 @@ class CassandraTests(TestCase, AgamemnonTests):
     def setUp(self):
         host_list = '["localhost:9160"]'
         keyspace = 'agamemnontests'
-        es_server = '33.33.33.10:9200'
+        es_server = 'disable'
         try:
             cassandra.drop_keyspace(host_list, keyspace)
         except Exception:
@@ -350,7 +350,7 @@ class CassandraTests(TestCase, AgamemnonTests):
 
 class InMemoryTests(TestCase, AgamemnonTests):
     def setUp(self):
-        self.ds = load_from_settings({'agamemnon.keyspace': 'memory','es_server':'33.33.33.10:9200','es_config':''})
+        self.ds = load_from_settings({'agamemnon.keyspace': 'memory','es_server':'disable','es_config':''})
 
 class ElasticSearchTests(TestCase, AgamemnonTests):
     def setUp(self):
