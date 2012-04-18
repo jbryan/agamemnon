@@ -19,8 +19,8 @@ class FullTextSearch(object):
                     'analysis' : {
                         'analyzer' : {                             
                             'ngram_analyzer' : {                   
-                                'tokenizer' : 'standard',
-                                'filter' : ['standard', 'filter_ngram'],
+                                'tokenizer' : 'keyword',
+                                'filter' : ['lowercase', 'filter_ngram'],
                                 'type' : 'custom'
                             }  
                         },
@@ -55,7 +55,9 @@ class FullTextSearch(object):
                             'analyzer' : 'ngram_analyzer',
                             'type': u'string',
                             'term_vector': 'with_positions_offsets'}
-        index_settings = {'index_analyzer':'ngram_analyzer','search_analyzer':'standard','properties':mapping}
+        index_settings = {'index_analyzer':'ngram_analyzer',
+                          'search_analyzer':'standard',
+                          'properties':mapping}
         self.conn.put_mapping(str(type),index_settings,[ns_index_name])
         self.refresh_index_cache()
         self.populate_index(type, index_name)
