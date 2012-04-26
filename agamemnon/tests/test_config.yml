@@ -1,0 +1,45 @@
+# In Memory configuration 1
+memory_config_1:
+  backend: agamemnon.memory.InMemoryDataStore
+  rdf:
+    namespace_base: "http://www.example.org/rdf/"
+
+# In Memory configuration 2
+memory_config_2:
+  backend: agamemnon.memory.InMemoryDataStore
+  rdf:
+    namespace_base: "http://www.example.org/rdf/"
+
+# Cassandra configuration 1
+cassandra_config_1:
+  backend: agamemnon.cassandra.CassandraDataStore
+  backend_config: 
+    keyspace: 'testagamemnon1'
+    server_list: 
+      - "localhost:9160"
+    create_keyspace: yes
+  rdf:
+    namespace_base: "http://www.example.org/rdf/"
+
+# Cassandra configuration 2
+cassandra_config_2:
+  backend: agamemnon.cassandra.CassandraDataStore
+  backend_config: 
+    keyspace: 'testagamemnon2'
+    server_list: 
+      - "localhost:9160"
+    create_keyspace: yes
+  rdf:
+    namespace_base: "http://www.example.org/rdf/"
+
+# Config for elastic search tests with in memory ds
+elastic_search_config:
+  backend: agamemnon.memory.InMemoryDataStore
+  rdf:
+    namespace_base: "http://www.example.org/rdf"
+  plugins:
+    elastic_search: 
+      classname: agamemnon.plugins.elasticsearch.FullTextSearch
+      plugin_config:
+        server: 'localhost:9200'
+
