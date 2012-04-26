@@ -1,10 +1,12 @@
 # -*- encoding: ISO-8859-5 -*-
 import random
 from unittest import TestCase
-from agamemnon import cassandra
-from agamemnon.factory import load_from_settings
-from agamemnon.primitives import updating_node
 from agamemnon.exceptions import NodeNotFoundException
+from agamemnon.factory import load_from_file
+from agamemnon.primitives import updating_node
+from os import path
+
+TEST_CONFIG_FILE = path.join(path.dirname(__file__),'test_config.yml')
 
 class AgamemnonTests(object):
     def create_node(self, node_type, id):
@@ -333,41 +335,16 @@ class AgamemnonTests(object):
 
 class CassandraTests(TestCase, AgamemnonTests):
     def setUp(self):
-        host_list = '["localhost:9160"]'
-        keyspace = 'agamemnontests'
-        es_server = '33.33.33.10:9200'
-        try:
-            cassandra.drop_keyspace(host_list, keyspace)
-        except Exception:
-            pass
-        cassandra.create_keyspace(host_list, keyspace)
-        self.ds = load_from_settings({
-            'agamemnon.host_list': host_list,
-            "agamemnon.keyspace": keyspace,
-            'es_server':es_server,
-            'es_config':''
-        })
+        self.ds = load_from_file(TEST_CONFIG_FILE, 'cassandra_config_1')
+        self.ds.truncate()
 
 class InMemoryTests(TestCase, AgamemnonTests):
     def setUp(self):
-        self.ds = load_from_settings({'agamemnon.keyspace': 'memory','es_server':'33.33.33.10:9200','es_config':''})
+        self.ds = load_from_file(TEST_CONFIG_FILE, 'memory_config_1')
 
 class ElasticSearchTests(TestCase, AgamemnonTests):
     def setUp(self):
-        host_list = '["localhost:9160"]'
-        keyspace = 'agamemnontests'
-        es_server = '33.33.33.10:9200'
-        try:
-            cassandra.drop_keyspace(host_list, keyspace)
-        except Exception:
-            pass
-        cassandra.create_keyspace(host_list, keyspace)
-        self.ds = load_from_settings({
-            'agamemnon.host_list': host_list,
-            "agamemnon.keyspace": keyspace,
-            'es_server': es_server,
-            'es_config':""
-        })
+        self.ds = load_from_file(TEST_CONFIG_FILE, 'elastic_search_config')
         node_type = 'node_test'
         index_name = "test_index"
         new_index_name = "new_index"
