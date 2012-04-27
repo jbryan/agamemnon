@@ -53,25 +53,13 @@ class AgamemnonStore(Store):
         self.node_cache.clear()
 
 
-    def open(self, configuration=None, create=False, create_options=None):
+    def open(self, configuration=None, create=False):
         if configuration:
             self.configuration = configuration
-        keyspace = self.configuration['agamemnon.keyspace']
-        if create and keyspace != "memory":
-            hostlist = json.loads(self.configuration['agamemnon.host_list'])
-            system_manager = pycassa.SystemManager(hostlist[0])
-            try:
-                log.info("Attempting to drop keyspace: %s" % keyspace)
-                system_manager.drop_keyspace(keyspace)
-            except pycassa.cassandra.ttypes.InvalidRequestException:
-                log.warn("Keyspace didn't exist")
-            finally:
-                log.info("Creating keyspace: %s" % keyspace)
-                if create_options is None:
-                    create_options = {"strategy_options": { 'replication_factor' : '1' }}
-                system_manager.create_keyspace(keyspace, **create_options)
-
         self.data_store = load_from_settings(self.configuration)
+
+        if create:
+            self.data_store.create()
 
         return VALID_STORE
 
@@ -111,10 +99,8 @@ class AgamemnonStore(Store):
         self._ignored_node_types.remove(node_type)
 
     def _process_config(self):
-        config_prefix = "agamemnon.rdf_"
-        for key, value in self.configuration.items():
-            if key.startswith(config_prefix):
-                setattr(self, key[len(config_prefix):], value)
+        for key, value in self.configuration['rdf'].items():
+            setattr(self, key, value)
 
     def add(self, (subject, predicate, object), context, quoted=False):
         log.debug("Adding  %r, %r, %r" % (subject, predicate, object))

@@ -1,12 +1,15 @@
-from agamemnon.exceptions import PluginDisabled
-
 
 class Delegate(object):
     def __init__(self):
         self.plugins = []
 
     def load_plugins(self,plugin_dict):
-        for key,plugin in plugin_dict.items():
+        #TODO: this is busted
+        for key,config in plugin_dict.items():
+            module_name, cls_name = config['classname'].rsplit('.',1)
+            module = __import__(module_name, fromlist=[cls_name])
+            cls = getattr(module, cls_name)
+            plugin = cls(**config['plugin_config'])
             self.__dict__[key]=plugin
             self.plugins.append(key)
 
@@ -34,5 +37,5 @@ class Delegate(object):
                     return attr
                 except AttributeError:
                     pass
-            raise PluginDisabled
+            raise AttributeError("No plugin has attribute: %s" % item)
 

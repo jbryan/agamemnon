@@ -16,6 +16,16 @@ class InMemoryDataStore(Delegate):
         self.batch_count = 0
         self.in_batch = False
 
+    def create(self):
+        # Since data store is in memory, nothing needs to be done
+        pass
+
+    def drop(self):
+        self.tables = OrderedDict()
+
+    def truncate(self):
+        self.drop()
+
     def get_count(self, type, row, columns=None, column_start=None, super_column=None, column_finish=None):
         return self.get_cf(type).get_count(row, columns=columns, column_start=column_start,
                                            column_finish=column_finish, super_column=super_column)

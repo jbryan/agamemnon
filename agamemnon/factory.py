@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-import json
 import string
 import uuid
 import datetime
@@ -14,6 +13,7 @@ from agamemnon.memory import InMemoryDataStore
 from agamemnon.exceptions import NodeNotFoundException
 import agamemnon.primitives as prim
 import logging
+import yaml
 
 log = logging.getLogger(__name__)
 
@@ -519,23 +519,28 @@ class DataStore(object):
         if not item in self.__dict__:
             return getattr(self.delegate, item)
 
-def load_from_settings(settings, prefix='agamemnon.'):
-    #plugin setup
-    plugin_dict = {}
-    try:
-        if(settings['es_server']!='disable'):
-            from agamemnon.elasticsearch import FullTextSearch
-            plugin_dict['elastic_search'] = FullTextSearch(settings['es_server'],settings['es_config'])
-    except KeyError:
-        pass
-    #load delegate
-    if settings["%skeyspace" % prefix] == 'memory':
-        delegate = InMemoryDataStore()
-    else:
-        delegate = CassandraDataStore(
-            settings['%skeyspace' % prefix],
-            pycassa.pool.ConnectionPool(settings["%skeyspace" % prefix], json.loads(settings["%shost_list" % prefix])),
-            system_manager=pycassa.system_manager.SystemManager(json.loads(settings["%shost_list" % prefix])[0])
-        )
-    delegate.load_plugins(plugin_dict)
+def load_from_file(config_file, key=None):
+    """
+    Load the specified yaml file. If :key is set, then we will use that as the
+    top level attribute of the yaml file that holds the config, otherwise, we
+    assume the whole yaml file is the config.
+    """
+    with open(config_file) as f:
+        settings = yaml.load(f)
+    if key is not None:
+        settings = settings[key]
+
+    return load_from_settings(settings)
+
+
+def load_from_settings(settings):
+    settings['plugins'] = settings.get('plugins',{})
+    settings['backend_config'] = settings.get('backend_config',{})
+
+    # load delegate
+    module_name, cls_name = settings['backend'].rsplit('.',1)
+    module = __import__(module_name, fromlist=[cls_name])
+    cls = getattr(module, cls_name)
+    delegate = cls(**settings['backend_config'])
+    delegate.load_plugins(settings['plugins'])
     return DataStore(delegate)

@@ -2,19 +2,38 @@ import json
 from pycassa import system_manager
 import pycassa
 from pycassa.batch import Mutator
-from pycassa.cassandra.ttypes import NotFoundException
+from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
 from agamemnon.graph_constants import OUTBOUND_RELATIONSHIP_CF, INBOUND_RELATIONSHIP_CF, RELATIONSHIP_INDEX, RELATIONSHIP_CF
 import pycassa.columnfamily as cf
 from agamemnon.delegate import Delegate
 
 class CassandraDataStore(Delegate):
-    def __init__(self, keyspace, pool, system_manager):
+    def __init__(self, 
+                 keyspace='agamemnon', 
+                 server_list=['localhost:9160'], 
+                 replication_factor=1,
+                 create_keyspace = False,
+                **kwargs):
         super(CassandraDataStore,self).__init__()
+
+        self._keyspace=keyspace
+        self._server_list=server_list
+        self._replication_factor=replication_factor
+        self._pool_args = kwargs
+
+        self._system_manager = pycassa.system_manager.SystemManager(server_list[0])
+        if create_keyspace:
+            self.create()
+
+        self.init_pool()
+
+    def init_pool(self):
+        self._pool = pycassa.pool.ConnectionPool(self._keyspace,
+                                                 self._server_list,
+                                                 self._pool_args)
+
         self._cf_cache = {}
         self._index_cache = {}
-        self._system_manager = system_manager
-        self._pool = pool
-        self._keyspace = keyspace
         self._batch = None
         self.in_batch = False
         self.batch_count = 0
@@ -26,6 +45,26 @@ class CassandraDataStore(Delegate):
             self.create_cf(RELATIONSHIP_INDEX, super=True)
         if not self.cf_exists(RELATIONSHIP_CF):
             self.create_cf(RELATIONSHIP_CF, super=False)
+
+
+    def create(self):
+        if self._keyspace not in self._system_manager.list_keyspaces():
+            strategy_options = { 'replication_factor': str(self._replication_factor) } 
+            self._system_manager.create_keyspace(self._keyspace, 
+                                                strategy_options = strategy_options )
+
+    def drop(self):
+        self._system_manager.drop_keyspace(self._keyspace)
+        self._pool.dispose()
+        self._pool = None
+
+    def truncate(self):
+        try:
+            self.drop()
+        except InvalidRequestException:
+            pass
+        self.create()
+        self.init_pool()
 
     def get_count(self, type, row, columns=None, column_start=None, super_column=None, column_finish=None):
         args = {}
