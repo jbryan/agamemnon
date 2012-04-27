@@ -1,4 +1,3 @@
-==============
 Agamemnon
 ==============
 
@@ -12,30 +11,32 @@ however the support in this package has diverged from that project.
 
 Agamemnon also has integrated RDF support through RDFLib (http://www.rdflib.net/)
 
-==========================
+[![Build Status](https://secure.travis-ci.org/globusonline/agamemnon.png)](http://travis-ci.org/globusonline/agamemnon)
+
 Usage
 ==========================
 
 The following is an example of how to use Agamemnon in your own code
 
-
->>> from agamemnon.factory import load_from_settings
-
+```python
+from agamemnon.factory import load_from_settings
+```
 First, we can decide which kind of data store we are creating.  In this case we're creating an InMemory data store
 
->>> config = {'backend': 'agamemnon.memory.InMemoryDataStore'}
->>> graph_db = load_from_settings(config)
-
+```python
+config = {'backend': 'agamemnon.memory.InMemoryDataStore'}
+graph_db = load_from_settings(config)
+```
 In honor of The Simpsons Movie, we'll create a node called spiderpig
-
->>> spiderpig = graph_db.create_node('test_type', 'spiderpig', {'sound':'oink'})
-
+```python
+spiderpig = graph_db.create_node('test_type', 'spiderpig', {'sound':'oink'})
+```
 Now we will retrieve the spiderpig from the graph and check that the attributes were correct.
-
+```python
 >>> spiderpig = graph_db.get_node('test_type', 'spiderpig')
 >>> spiderpig['sound']
 'oink'
-
+```
 
 Now we will create a friend for the spiderpig (who also happens to be his alter ego).  Again, let's check to
 confirm that the node and it's attributes were created correctly.
