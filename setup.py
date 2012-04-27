@@ -3,7 +3,7 @@ import os
 from setuptools import setup, find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
-README = open('README.rst').read()
+README = open('README.md').read()
 CHANGES = open('CHANGES.txt').read()
 
 requires = ['pycassa==1.4.0', 'thrift', 'pyes', 'setuptools','ordereddict','rdflib','rdfextras','python-dateutil==1.5', 'pyyaml']
