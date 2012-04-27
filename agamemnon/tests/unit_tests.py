@@ -6,6 +6,8 @@ from agamemnon.factory import load_from_file
 from agamemnon.primitives import updating_node
 from os import path
 
+from nose.plugins.attrib import attr
+
 TEST_CONFIG_FILE = path.join(path.dirname(__file__),'test_config.yml')
 
 class AgamemnonTests(object):
@@ -24,7 +26,6 @@ class AgamemnonTests(object):
         self.failUnlessEqual(key, node.key)
         self.failUnlessEqual(node_type, node.type)
         return key, attributes
-    
     
 
     def containment(self, node_type, node):
@@ -332,12 +333,12 @@ class AgamemnonTests(object):
 
         self.assertEqual(2*num + 1, len([rel for rel in root.relationships]))
         self.assertEqual(2*num + 1, len(root.relationships))
-
+@attr(backend="cassandra")
 class CassandraTests(TestCase, AgamemnonTests):
     def setUp(self):
         self.ds = load_from_file(TEST_CONFIG_FILE, 'cassandra_config_1')
         self.ds.truncate()
-
+@attr(backend="memory")
 class InMemoryTests(TestCase, AgamemnonTests):
     def setUp(self):
         self.ds = load_from_file(TEST_CONFIG_FILE, 'memory_config_1')

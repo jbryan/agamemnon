@@ -1,4 +1,5 @@
 import unittest
+from nose.plugins.attrib import attr
 from rdflib.term import URIRef, Literal
 from rdflib.namespace import  Namespace
 from rdflib.graph import Graph
@@ -13,10 +14,8 @@ log = logging.getLogger(__name__)
 
 TEST_CONFIG_FILE = path.join(path.dirname(__file__),'test_config.yml')
 
-class GraphMemoryTestCase(unittest.TestCase):
+class BaseTests(object):
     store_name = 'Agamemnon'
-    settings1 = 'memory_config_1'
-    settings2 = 'memory_config_2'
 
     def setUp(self):
         with open(TEST_CONFIG_FILE) as f:
@@ -460,11 +459,14 @@ class GraphMemoryTestCase(unittest.TestCase):
 
         self.graph1.serialize("serialized.rdf")
 
-
-class GraphCassandraTestCase(GraphMemoryTestCase):
+@attr(backend='cassandra')
+class GraphCassandraTestCase(BaseTests, unittest.TestCase):
     settings1 = 'cassandra_config_1'
     settings2 = 'cassandra_config_2'
-
+@attr(backend='memory')
+class GraphMemoryTestCase(BaseTests, unittest.TestCase):
+    settings1 = 'memory_config_1'
+    settings2 = 'memory_config_2'
 
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase(GraphMemoryTestCase)
