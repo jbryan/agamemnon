@@ -12,10 +12,6 @@ from agamemnon.cassandra import CassandraDataStore
 from agamemnon.memory import InMemoryDataStore
 from agamemnon.exceptions import NodeNotFoundException
 import agamemnon.primitives as prim
-<<<<<<< HEAD
-from agamemnon.delegate import Delegate
-=======
->>>>>>> upstream/master
 import logging
 import yaml
 
