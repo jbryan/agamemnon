@@ -1,18 +1,13 @@
 from pyes.es import ES
 from pyes import exceptions
 from pyes.query import WildcardQuery
-from agamemnon.exceptions import NodeNotFoundException
-import string
-import json
 
 class FullTextSearch(object):
-    def __init__(self,es_server,es_config):
-        self.conn = ES(es_server)
+    def __init__(self,server,settings = None ):
+        self.conn = ES(server)
         self.indices = {}
-        if(es_config!=""):
-            fp = open(es_config,'r')
-            self.settings = json.load(fp)
-            fp.close()
+        if settings:
+            self.settings = settings
         else:
             self.settings = { 
                 'index': {

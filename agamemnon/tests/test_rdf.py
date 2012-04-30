@@ -1,33 +1,31 @@
 import unittest
+from nose.plugins.attrib import attr
 from rdflib.term import URIRef, Literal
 from rdflib.namespace import  Namespace
 from rdflib.graph import Graph
 import rdflib.plugin
-from agamemnon.rdf_store import AgamemnonStore
 import uuid
+import yaml
+from os import path 
+from agamemnon import rdf_store
 
 import logging
 log = logging.getLogger(__name__)
 
-class GraphMemoryTestCase(unittest.TestCase):
+TEST_CONFIG_FILE = path.join(path.dirname(__file__),'test_config.yml')
+
+class BaseTests(object):
     store_name = 'Agamemnon'
-    settings1 = {
-        'agamemnon.keyspace' : 'memory',
-        'agamemnon.host_list' : '["localhost:9160"]',
-        'agamemnon.rdf_namespace_base' : 'http://www.example.org/rdf/',
-    }
-    settings2 = {
-        'agamemnon.keyspace' : 'memory',
-        'agamemnon.host_list' : '["localhost:9160"]',
-        'agamemnon.rdf_namespace_base' : 'http://www.example.org/rdf/',
-    }
 
     def setUp(self):
+        with open(TEST_CONFIG_FILE) as f:
+            settings = yaml.load(f)
+
         self.graph1 = Graph(store=self.store_name)
         self.graph2 = Graph(store=self.store_name)
 
-        self.graph1.open(self.settings1, True)
-        self.graph2.open(self.settings2, True)
+        self.graph1.open(settings[self.settings1], True)
+        self.graph2.open(settings[self.settings2], True)
 
         self.oNS = Namespace("http://www.example.org/rdf/things#")
         self.sNS = Namespace("http://www.example.org/rdf/people#")
@@ -53,6 +51,8 @@ class GraphMemoryTestCase(unittest.TestCase):
     def tearDown(self):
         self.graph1.close()
         self.graph2.close()
+        self.graph1.store.data_store.drop()
+        self.graph2.store.data_store.drop()
 
     def addStuff(self,graph):
         graph.add((self.tarek, self.likes, self.pizza))
@@ -272,10 +272,8 @@ class GraphMemoryTestCase(unittest.TestCase):
         g2=self.graph2
 
         tarek = self.tarek
-        michel = self.michel
         bob = self.bob
         likes = self.likes
-        hates = self.hates
         pizza = self.pizza
         cheese = self.cheese
        
@@ -305,10 +303,8 @@ class GraphMemoryTestCase(unittest.TestCase):
         g2=self.graph2
 
         tarek = self.tarek
-        michel = self.michel
         bob = self.bob
         likes = self.likes
-        hates = self.hates
         pizza = self.pizza
         cheese = self.cheese
        
@@ -340,7 +336,6 @@ class GraphMemoryTestCase(unittest.TestCase):
         michel = self.michel
         bob = self.bob
         likes = self.likes
-        hates = self.hates
         pizza = self.pizza
         cheese = self.cheese
        
@@ -459,24 +454,19 @@ class GraphMemoryTestCase(unittest.TestCase):
 
         #additional examples for the fun of it
         self.graph1.parse("http://bigasterisk.com/foaf.rdf")
-        self.graph1.parse("http://www.w3.org/People/Berners-Lee/card.rdf")
+        #self.graph1.parse("http://www.w3.org/People/Berners-Lee/card.rdf")
         #self.graph1.parse("http://danbri.livejournal.com/data/foaf") 
 
         self.graph1.serialize("serialized.rdf")
 
-
-class GraphCassandraTestCase(GraphMemoryTestCase):
-    settings1 = {
-        'agamemnon.keyspace' : 'testagamemnon1',
-        'agamemnon.host_list' : '["localhost:9160"]',
-        'agamemnon.rdf_namespace_base' : 'http://www.example.org/rdf/',
-    }
-    settings2 = {
-        'agamemnon.keyspace' : 'testagamemnon2',
-        'agamemnon.host_list' : '["localhost:9160"]',
-        'agamemnon.rdf_namespace_base' : 'http://www.example.org/rdf/',
-    }
-
+@attr(backend='cassandra')
+class GraphCassandraTestCase(BaseTests, unittest.TestCase):
+    settings1 = 'cassandra_config_1'
+    settings2 = 'cassandra_config_2'
+@attr(backend='memory')
+class GraphMemoryTestCase(BaseTests, unittest.TestCase):
+    settings1 = 'memory_config_1'
+    settings2 = 'memory_config_2'
 
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase(GraphMemoryTestCase)
