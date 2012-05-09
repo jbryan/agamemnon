@@ -1,5 +1,4 @@
 import json
-from pycassa import system_manager
 import pycassa
 from pycassa.batch import Mutator
 from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
@@ -24,8 +23,8 @@ class CassandraDataStore(Delegate):
         self._system_manager = pycassa.system_manager.SystemManager(server_list[0])
         if create_keyspace:
             self.create()
-
-        self.init_pool()
+        else:
+            self.init_pool()
 
     def init_pool(self):
         self._pool = pycassa.pool.ConnectionPool(self._keyspace,
@@ -46,12 +45,20 @@ class CassandraDataStore(Delegate):
         if not self.cf_exists(RELATIONSHIP_CF):
             self.create_cf(RELATIONSHIP_CF, super=False)
 
+    @property
+    def system_manager(self):
+        return self._system_manager
+
+    @property
+    def keyspace(self):
+        return self._keyspace
 
     def create(self):
         if self._keyspace not in self._system_manager.list_keyspaces():
             strategy_options = { 'replication_factor': str(self._replication_factor) } 
             self._system_manager.create_keyspace(self._keyspace, 
                                                 strategy_options = strategy_options )
+        self.init_pool()
 
     def drop(self):
         self._system_manager.drop_keyspace(self._keyspace)
@@ -78,13 +85,13 @@ class CassandraDataStore(Delegate):
             args['super_column'] = super_column
         return self.get_cf(type).get_count(row, **args)
 
-    def create_cf(self, type, column_type=system_manager.ASCII_TYPE, super=False, index_columns=list()):
+    def create_cf(self, type, column_type=pycassa.system_manager.ASCII_TYPE, super=False, index_columns=list()):
         self._system_manager.create_column_family(self._keyspace, type, super=super, comparator_type=column_type)
         for column in index_columns:
             self.create_secondary_index(type, column, column_type)
         return cf.ColumnFamily(self._pool, type, autopack_names=False, autopack_values=False)
 
-    def create_secondary_index(self, type, column, column_type=system_manager.ASCII_TYPE):
+    def create_secondary_index(self, type, column, column_type=pycassa.system_manager.ASCII_TYPE):
         self._system_manager.create_index(self._keyspace, type, column, column_type,
                                           index_name='%s_%s_index' % (type, column))
     
