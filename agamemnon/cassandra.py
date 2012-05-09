@@ -23,8 +23,8 @@ class CassandraDataStore(Delegate):
         self._system_manager = pycassa.system_manager.SystemManager(server_list[0])
         if create_keyspace:
             self.create()
-
-        self.init_pool()
+        else:
+            self.init_pool()
 
     def init_pool(self):
         self._pool = pycassa.pool.ConnectionPool(self._keyspace,
@@ -58,6 +58,7 @@ class CassandraDataStore(Delegate):
             strategy_options = { 'replication_factor': str(self._replication_factor) } 
             self._system_manager.create_keyspace(self._keyspace, 
                                                 strategy_options = strategy_options )
+        self.init_pool()
 
     def drop(self):
         self._system_manager.drop_keyspace(self._keyspace)
