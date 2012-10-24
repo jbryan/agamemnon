@@ -1,9 +1,10 @@
 # -*- encoding: ISO-8859-5 -*-
 import random
-from unittest import TestCase
+from unittest import TestCase, SkipTest
 from agamemnon.exceptions import NodeNotFoundException
 from agamemnon.factory import load_from_file
 from agamemnon.primitives import updating_node
+from pycassa import TTransport
 from os import path
 
 from nose.plugins.attrib import attr
@@ -333,15 +334,23 @@ class AgamemnonTests(object):
 
         self.assertEqual(2*num + 1, len([rel for rel in root.relationships]))
         self.assertEqual(2*num + 1, len(root.relationships))
+
+
 @attr(backend="cassandra")
 class CassandraTests(TestCase, AgamemnonTests):
     def setUp(self):
-        self.ds = load_from_file(TEST_CONFIG_FILE, 'cassandra_config_1')
-        self.ds.truncate()
+        try:
+            self.ds = load_from_file(TEST_CONFIG_FILE, 'cassandra_config_1')
+            self.ds.truncate()
+        except TTransport.TTransportException:
+            raise SkipTest("Could not connect to cassandra.")
+
+
 @attr(backend="memory")
 class InMemoryTests(TestCase, AgamemnonTests):
     def setUp(self):
         self.ds = load_from_file(TEST_CONFIG_FILE, 'memory_config_1')
+
 
 class ElasticSearchTests(TestCase, AgamemnonTests):
     def setUp(self):
