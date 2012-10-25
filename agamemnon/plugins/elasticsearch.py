@@ -1,6 +1,8 @@
 from pyes.es import ES
 from pyes import exceptions
-from pyes.query import WildcardQuery
+from pyes import query
+from itertools import groupby
+from operator import itemgetter
 
 class FullTextSearch(object):
     def __init__(self,server,settings = None ):
@@ -30,13 +32,21 @@ class FullTextSearch(object):
                 }
             }
 
-    def search_index(self, type, index_names, query_string, num_results=-1):
-        q = WildcardQuery('_all',query_string)
+    def search_index(self, type, index_names, query_string, num_results=None, fields="_all"):
+        q = query.WildcardQuery(fields ,query_string)
         results = self.conn.search(query=q, indices=index_names, doc_types=type)
-        try:
-            nodelist = [self.datastore.get_node(type,r['_id']) for r in results['hits']['hits'][0:num_results]+[results['hits']['hits'][num_results]]]
-        except IndexError:
-            nodelist = [self.datastore.get_node(type,r['_id']) for r in results['hits']['hits'][0:num_results]]
+        type_id_list = [(r['_type'] ,r['_id']) for r in results['hits']['hits'][0:num_results]]
+        node_dict = {}
+
+        # fetch nodes grouped by type to reduce number of db calls
+        for t, id_list in groupby(sorted(type_id_list), key=itemgetter(0)):
+            ids = [n[1] for n in id_list]
+            for node in self.datastore.get_nodes(t, ids):
+                node_dict[(node.type, node.key)] = node
+
+        # return nodes in original order
+        nodelist = [node_dict[key] for key in type_id_list]
+
         return nodelist
 
     def create_index(self, type, indexed_variables, index_name):
@@ -46,7 +56,7 @@ class FullTextSearch(object):
         for arg in indexed_variables:
             mapping[arg] = {'boost':1.0,
                             'analyzer' : 'ngram_analyzer',
-                            'type': u'string',
+                            'type': 'string',
                             'term_vector': 'with_positions_offsets'}
         index_settings = {'index_analyzer':'ngram_analyzer',
                           'search_analyzer':'standard',
