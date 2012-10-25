@@ -6,6 +6,7 @@ from agamemnon.factory import load_from_file
 from agamemnon.primitives import updating_node
 from pycassa import TTransport
 from os import path
+import socket
 
 from nose.plugins.attrib import attr
 
@@ -387,7 +388,11 @@ class ElasticSearchTests(TestCase, AgamemnonTests):
     def setUp(self):
         self.ds = load_from_file(TEST_CONFIG_FILE, 'elastic_search_config')
         self.ds.truncate()
-    
+        try:
+            self.ds.conn.collect_info()
+        except socket.error:
+            raise SkipTest("Can't connect to Elastic Search")
+
     def tearDown(self):
         self.ds.truncate()
         for index in self.ds.indices.keys():
@@ -465,3 +470,8 @@ class ElasticSearchTests(TestCase, AgamemnonTests):
 
         nodes = self.ds.search_index_text("lincoln")
         self.assertEqual(len(nodes), 1)
+
+    def test_node_missing_fields(self):
+        self.ds.create_index("test_type_1", ["full_text", "missing"], "test_index1")
+        self._create_es_nodes()
+

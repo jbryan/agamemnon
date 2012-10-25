@@ -8,7 +8,6 @@ from operator import itemgetter
 class FullTextSearch(object):
     def __init__(self, server, settings=None):
         self.conn = ES(server)
-        self.indices = {}
         if settings:
             self.settings = settings
         else:
@@ -32,6 +31,7 @@ class FullTextSearch(object):
                     }
                 }
             }
+        self.refresh_index_cache()
 
     def search_index_text(self, query_string, fields="_all", **args):
         q = query.TextQuery(fields, query_string)
@@ -75,7 +75,7 @@ class FullTextSearch(object):
         try:
             self.indices = self.conn.get_mapping()
         except exceptions.IndexMissingException:
-            self.indices = []
+            self.indices = {}
 
     def delete_index(self, index_name):
         self.conn.delete_index_if_exists(index_name)
@@ -85,11 +85,11 @@ class FullTextSearch(object):
         #add all the currently existing nodes into the index
         ref_node = self.datastore.get_reference_node(type)
         node_list = [rel.target_node for rel in ref_node.instance.outgoing]
-        mapping = self.conn.get_mapping(type, index_name)
+
         for node in node_list:
             key = node.key
-            index_dict = self.populate_index_document(
-                type, index_name, node.attributes, mapping)
+            index_dict = self.populate_index_document(node, index_name)
+            print index_dict
             try:
                 self.conn.delete(index_name, type, key)
             except exceptions.NotFoundException:
@@ -100,9 +100,7 @@ class FullTextSearch(object):
     def on_create(self, node):
         type_indices = self.get_indices_of_type(node.type)
         for index_name in type_indices:
-            mapping = self.conn.get_mapping(node.type, index_name)
-            index_dict = self.populate_index_document(
-                node.type, index_name, node.attributes, mapping)
+            index_dict = self.populate_index_document(node, index_name)
             self.conn.index(index_dict, index_name, node.type, node.key)
             self.conn.refresh([index_name])
 
@@ -118,9 +116,7 @@ class FullTextSearch(object):
     def on_modify(self, node):
         type_indices = self.get_indices_of_type(node.type)
         for index_name in type_indices:
-            mapping = self.conn.get_mapping(node.type, index_name)
-            index_dict = self.populate_index_document(
-                node.type, index_name, node.attributes, mapping)
+            index_dict = self.populate_index_document(node, index_name)
             try:
                 self.conn.delete(index_name, node.type, node.key)
                 self.conn.index(index_dict, index_name, node.type, node.key)
@@ -135,13 +131,9 @@ class FullTextSearch(object):
         ]
         return type_indices
 
-    def populate_index_document(self, type, index_name, attributes, mapping):
-        indexed_variables = mapping[type]['properties'].keys()
-        index_dict = {}
-        for arg in indexed_variables:
-            try:
-                index_dict[arg] = attributes[arg]
-            except KeyError:
-                #if this attribute doesn't exist for this node, just pass
-                pass
+    def populate_index_document(self, node, index_name):
+        indexed_variables = self.indices[index_name][node.type]['properties'].keys()
+        index_dict = {
+            field: node[field] for field in indexed_variables
+        }
         return index_dict
