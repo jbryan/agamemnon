@@ -24,37 +24,37 @@ class AgamemnonTests(object):
         key = 'node_%s' % id
         self.ds.create_node(node_type, key, attributes)
         node = self.ds.get_node(node_type, key)
-        self.failUnlessEqual(key, node.key)
-        self.failUnlessEqual(node_type, node.type)
+        self.assertEqual(key, node.key)
+        self.assertEqual(node_type, node.type)
         return key, attributes
     
 
     def containment(self, node_type, node):
         reference_node = self.ds.get_reference_node(node_type)
         test_reference_nodes = [rel.source_node for rel in node.instance.incoming]
-        self.failUnlessEqual(1, len(test_reference_nodes))
-        self.failUnlessEqual(reference_node, test_reference_nodes[0])
+        self.assertEqual(1, len(test_reference_nodes))
+        self.assertEqual(reference_node, test_reference_nodes[0])
         ref_ref_node = self.ds.get_reference_node()
         test_reference_nodes = [rel.target_node for rel in ref_ref_node.instance.outgoing]
-        self.failUnlessEqual(2, len(test_reference_nodes))
-        self.failUnlessEqual(sorted([ref_ref_node, reference_node]), sorted(test_reference_nodes))
-        self.failUnless(node_type in ref_ref_node.instance)
-        self.failUnless(ref_ref_node.key in reference_node.instance)
+        self.assertEqual(2, len(test_reference_nodes))
+        self.assertEqual(sorted([ref_ref_node, reference_node]), sorted(test_reference_nodes))
+        self.assertTrue(node_type in ref_ref_node.instance)
+        self.assertTrue(ref_ref_node.key in reference_node.instance)
 
     def get_set_attributes(self, node, attributes):
-        self.failUnlessEqual(attributes, node.attributes)
+        self.assertEqual(attributes, node.attributes)
         node['new_attribute'] = 'sample attr'
         node.commit()
         node = self.ds.get_node(node.type, node.key)
-        self.failUnlessEqual('sample attr', node['new_attribute'])
-        self.failIfEqual(attributes, node.attributes)
+        self.assertEqual('sample attr', node['new_attribute'])
+        self.assertNotEqual(attributes, node.attributes)
         # Test the context manager
         node = self.ds.get_node(node.type, node.key)
         with updating_node(node):
             node['new_attribute'] = 'new sample attr'
         node = self.ds.get_node(node.type, node.key)
-        self.failUnlessEqual('new sample attr', node['new_attribute'])
-        self.failIfEqual(attributes, node.attributes)
+        self.assertEqual('new sample attr', node['new_attribute'])
+        self.assertNotEqual(attributes, node.attributes)
         with updating_node(node):
             del(node['new_attribute'])
         node = self.ds.get_node(node.type, node.key)
@@ -80,34 +80,34 @@ class AgamemnonTests(object):
         }
         target_node = self.ds.get_node(target_type, target_key)
         rel = node.is_related_to(target_node, attributes=attributes, **kw_args)
-        self.failUnless(target_key in node.is_related_to)
-        self.failUnless(node.key in target_node.is_related_to)
+        self.assertTrue(target_key in node.is_related_to)
+        self.assertTrue(node.key in target_node.is_related_to)
         rel_to_target = target_node.is_related_to.relationships_with(node.key)[0]
-        self.failUnlessEqual(rel, rel_to_target)
+        self.assertEqual(rel, rel_to_target)
         complete_attributes = {}
         complete_attributes.update(attributes)
         complete_attributes.update(kw_args)
         test_attributes = rel_to_target.attributes
         for key in complete_attributes.keys():
-            self.failUnlessEqual(complete_attributes[key], test_attributes[key])
-        self.failUnlessEqual(len(complete_attributes), len(test_attributes))
-        self.failUnlessEqual(rel.key, rel_to_target.key)
-        self.failUnless(self.ds.get_relationship(rel.type, rel.key) is not None)
-        self.failUnlessEqual(len(complete_attributes), len(self.ds.get_relationship(rel.type, rel.key).attributes))
+            self.assertEqual(complete_attributes[key], test_attributes[key])
+        self.assertEqual(len(complete_attributes), len(test_attributes))
+        self.assertEqual(rel.key, rel_to_target.key)
+        self.assertTrue(self.ds.get_relationship(rel.type, rel.key) is not None)
+        self.assertEqual(len(complete_attributes), len(self.ds.get_relationship(rel.type, rel.key).attributes))
         in_outbound_relationships = False
         for rel in node.is_related_to.outgoing:
             if rel.target_node.key == target_key:
                 in_outbound_relationships = True
-        self.failUnless(in_outbound_relationships)
+        self.assertTrue(in_outbound_relationships)
         in_inbound_relationships = False
         for rel in target_node.is_related_to.incoming:
             if rel.source_node.key == node.key:
                 in_inbound_relationships = True
-        self.failUnless(in_inbound_relationships)
+        self.assertTrue(in_inbound_relationships)
         rel['dummy_variable'] = 'dummy'
         rel_attributes = rel.attributes
-        self.failIfEqual(attributes, rel.attributes)
-        self.failUnlessEqual('dummy', rel_attributes['dummy_variable'])
+        self.assertNotEqual(attributes, rel.attributes)
+        self.assertEqual('dummy', rel_attributes['dummy_variable'])
         del(rel['dummy_variable'])
         try:
             rel['dummy_variable']
@@ -118,25 +118,25 @@ class AgamemnonTests(object):
         rel.commit()
         rel_to_target = target_node.is_related_to.relationships_with(node.key)[0]
         if rel_to_target.key == rel.key:
-            self.failUnlessEqual(20, rel_to_target['int'])
+            self.assertEqual(20, rel_to_target['int'])
         return node, target_node
 
 
     def delete_relationships(self, source, target):
         source_initial_rel_count = len(source.relationships)
         target_initial_rel_count = len(target.relationships)
-        self.failUnless(target.key in source.is_related_to)
-        self.failUnless(source.key in target.is_related_to)
+        self.assertTrue(target.key in source.is_related_to)
+        self.assertTrue(source.key in target.is_related_to)
         rel_list = source.is_related_to.relationships_with(target.key)
-        self.failUnlessEqual(1, len(rel_list))
+        self.assertEqual(1, len(rel_list))
         rel = rel_list[0]
         rel.delete()
-        self.failIf(target.key in source.is_related_to)
-        self.failIf(source.key in target.is_related_to)
+        self.assertFalse(target.key in source.is_related_to)
+        self.assertFalse(source.key in target.is_related_to)
         source_post_delete_count = len(source.relationships)
         target_post_delete_count = len(target.relationships)
-        self.failUnlessEqual(source_initial_rel_count - 1, source_post_delete_count)
-        self.failUnlessEqual(target_initial_rel_count - 1, target_post_delete_count)
+        self.assertEqual(source_initial_rel_count - 1, source_post_delete_count)
+        self.assertEqual(target_initial_rel_count - 1, target_post_delete_count)
         return rel
 
     def test_multi_get(self):
@@ -296,8 +296,8 @@ class AgamemnonTests(object):
             source.delete()
             for deleted_rel in relationships_to_delete:
                 target_incoming_relationships = [rel for rel in target.is_related_to.incoming]
-                self.failIf(source.key in target.is_related_to)
-                self.failIf(deleted_rel in target_incoming_relationships)
+                self.assertFalse(source.key in target.is_related_to)
+                self.assertFalse(deleted_rel in target_incoming_relationships)
 
 
     def test_large_relationship_sets(self):
@@ -352,77 +352,116 @@ class InMemoryTests(TestCase, AgamemnonTests):
         self.ds = load_from_file(TEST_CONFIG_FILE, 'memory_config_1')
 
 
+@attr(backend="memory")
+@attr(plugin="elastic_search")
 class ElasticSearchTests(TestCase, AgamemnonTests):
+
+    TEST_NODES = {
+        "test_type_1": {
+            "test1": {
+                "full_text": "This is a sentence worth searching.",
+                "author": "me",
+            },
+            "test2": {
+                "full_text": "Four score and seven years ago...",
+                "author": "lincoln",
+            },
+            "test3": {
+                "full_text": "We hold these truths to be self-evident, that all men are created equal...",
+                "author": "jefferson",
+            },
+        },
+        "test_type_2": {
+            "test1": {
+                "other_text": "something and something",
+            },
+            "test2": {
+                "other_text": "One fish, two fish, red fish, blue fish",
+            },
+            "test3": {
+                "other_text": "I don't like green eggs and ham, I don't like them sam I am",
+            },
+        }
+    }
+
     def setUp(self):
         self.ds = load_from_file(TEST_CONFIG_FILE, 'elastic_search_config')
-        node_type = 'node_test'
-        index_name = "test_index"
-        new_index_name = "new_index"
-        try:
-            node1 = self.ds.get_node(node_type,'node_1')
-            self.ds.delete_node(node1)
-        except NodeNotFoundException:
-            pass
-        try:
-            node2 = self.ds.get_node(node_type,'node_2')
-            self.ds.delete_node(node2)
-        except NodeNotFoundException:
-            pass
-        self.ds.conn.delete_index_if_exists(index_name)
-        self.ds.conn.delete_index_if_exists(new_index_name)
+        self.ds.truncate()
+    
+    def tearDown(self):
+        self.ds.truncate()
+        for index in self.ds.indices.keys():
+            self.ds.delete_index(index)
 
-    def index_tests(self):
-        node_type = 'node_test'
-        index_name = "test_index"
-        new_index_name = "new_index"
-        args = ['integer','long','float','string']
-        [key1,atr1] = self.create_node(node_type,1)
-        self.ds.create_index(node_type,args,index_name)
+    def _create_es_nodes(self):
+        for type, node_data in self.TEST_NODES.items():
+            for key, attr in node_data.items():
+                self.ds.create_node(type, key, attr)
+
+    def test_create_index(self):
+        self.ds.create_index("test_type_1", ["full_text"], "test_index")
         #test to see if the index exists
-        self.failUnless(index_name in self.ds.conn.get_indices())
-        #test to see if search function works (also populate_indices)
-        node1 = self.ds.get_node(node_type,key1)
-        nodes_found = self.ds.search_index(node_type,index_name,'name1')
-        self.failUnless(node1 in nodes_found)
-        self.failUnlessEqual(1,len(nodes_found))
-        nodes_found = self.ds.search_index(node_type,index_name,'1000')
-        self.failUnless(node1 in nodes_found)
-        self.failUnlessEqual(1,len(nodes_found))
-        #test get_indices_of_type function
-        type_indices = self.ds.get_indices_of_type(node_type)
-        self.failUnless(index_name in type_indices)
-        self.failUnlessEqual(1,len(type_indices))
-        #test update_indices function
-        [key2,atr2] = self.create_node(node_type,2)
-        node2 = self.ds.get_node(node_type,key2)
-        nodes_found = self.ds.search_index(node_type,index_name,'name2')
-        self.failUnless(node2 in nodes_found)
-        self.failUnlessEqual(1,len(nodes_found))
-        nodes_found = self.ds.search_index(node_type,index_name,'1000')
-        self.failUnless(node1 in nodes_found)
-        self.failUnless(node2 in nodes_found)
-        self.failUnlessEqual(2,len(nodes_found))
-        #test modify_indices function
-        new_args = ['string','new_attr']
-        self.ds.create_index(node_type,new_args,new_index_name)
-        nodes_found = self.ds.search_index(node_type,new_index_name,'new_value')
-        self.failUnlessEqual(0,len(nodes_found))
-        self.ds.create_node(node_type,'node_2',{'new_attr':'new_value'})
-        new_node2 = self.ds.get_node(node_type,'node_2')
-        nodes_found = self.ds.search_index(node_type,new_index_name,'new_value')
-        self.failUnless(node1 not in nodes_found)
-        self.failUnless(new_node2 in nodes_found)
-        self.failUnlessEqual(1,len(nodes_found))
-        #test remove_node function
-        self.ds.delete_node(new_node2)
-        nodes_found = self.ds.search_index(node_type,index_name,'1000')
-        self.failUnlessEqual(1,len(nodes_found))
-        nodes_found = self.ds.search_index(node_type,index_name,'node_2')
-        self.failUnlessEqual(0,len(nodes_found))
-        #test delete_index function
-        num_indices = len(self.ds.conn.get_indices())
-        #self.ds.delete_index(node_type,index_name)
-        #self.ds.delete_index(node_type,new_index_name)
-        #self.failUnlessEqual(2,num_indices-len(self.ds.conn.get_indices()))
-        #self.ds.delete_node(node1)
+        self.assertIn("test_index", self.ds.conn.get_indices())
+        self.assertIn("test_index", self.ds.get_indices_of_type("test_type_1"))
+        self.assertNotIn("test_index", self.ds.get_indices_of_type("test_type_2"))
 
+    def test_simple_text_search(self):
+        self._create_es_nodes()
+        self.ds.create_index("test_type_1", ["full_text","author"], "test_index")
+        nodes = self.ds.search_index_text("lincoln")
+        self.assertEqual(len(nodes), 1)
+        self.assertEqual(nodes[0].key, "test2")
+        self.assertEqual(nodes[0].type, "test_type_1")
+
+
+    def test_update_indices(self): 
+        self._create_es_nodes()
+        self.ds.create_index("test_type_1", ["full_text","author"], "test_index")
+        node = self.ds.get_node("test_type_1", "test2")
+        node['author'] = 'joshbryan'
+        node.commit()
+        nodes = self.ds.search_index_text("lincoln")
+        self.assertEqual(len(nodes), 0)
+
+        self.ds.create_node("test_type_1", "new_node", {"full_text": "Lincoln is cool"})
+        nodes = self.ds.search_index_text("lincoln")
+        self.assertEqual(len(nodes), 1)
+        self.assertEqual(nodes[0].key, "new_node")
+        self.assertEqual(nodes[0].type, "test_type_1")
+
+    def test_delete_nodes(self):
+        self._create_es_nodes()
+        self.ds.create_index("test_type_1", ["full_text","author"], "test_index")
+        for type, node_data in self.TEST_NODES.items():
+            for key in node_data.keys():
+                self.ds.get_node(type, key).delete()
+
+        stats = self.ds.conn.get_indices()
+        self.assertEqual(stats['test_index']['num_docs'], 0)
+
+
+    def test_multiple_types_one_index(self):
+        self._create_es_nodes()
+        self.ds.create_index("test_type_1", ["full_text"], "test_index")
+        self.ds.create_index("test_type_2", ["other_text"], "test_index")
+        nodes = self.ds.search_index_text("green truths", indices=["test_index"])
+        self.assertEqual(len(nodes), 2)
+        type_key_list = [(node.type, node.key) for node in nodes]
+        self.assertIn(("test_type_1", "test3"), type_key_list)
+        self.assertIn(("test_type_2", "test3"), type_key_list)
+
+        nodes = self.ds.search_index_text("green truths", node_type='test_type_1')
+        self.assertEqual(len(nodes), 1)
+
+    def test_multiple_indices(self):
+        self._create_es_nodes()
+        self.ds.create_index("test_type_1", ["full_text"], "test_index1")
+        self.ds.create_index("test_type_1", ["author"], "test_index2")
+        nodes = self.ds.search_index_text("lincoln", indices=["test_index1"])
+        self.assertEqual(len(nodes), 0)
+
+        nodes = self.ds.search_index_text("lincoln", indices=["test_index2"])
+        self.assertEqual(len(nodes), 1)
+
+        nodes = self.ds.search_index_text("lincoln")
+        self.assertEqual(len(nodes), 1)
