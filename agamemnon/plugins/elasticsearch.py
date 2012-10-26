@@ -89,7 +89,6 @@ class FullTextSearch(object):
         for node in node_list:
             key = node.key
             index_dict = self.populate_index_document(node, index_name)
-            print index_dict
             try:
                 self.conn.delete(index_name, type, key)
             except exceptions.NotFoundException:
