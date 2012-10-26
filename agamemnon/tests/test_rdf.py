@@ -8,6 +8,8 @@ import uuid
 import yaml
 from os import path 
 from agamemnon import rdf_store
+from pycassa import TTransport
+from unittest import SkipTest
 
 import logging
 log = logging.getLogger(__name__)
@@ -18,14 +20,18 @@ class BaseTests(object):
     store_name = 'Agamemnon'
 
     def setUp(self):
-        with open(TEST_CONFIG_FILE) as f:
-            settings = yaml.load(f)
+        
+        try:
+            with open(TEST_CONFIG_FILE) as f:
+                settings = yaml.load(f)
 
-        self.graph1 = Graph(store=self.store_name)
-        self.graph2 = Graph(store=self.store_name)
+            self.graph1 = Graph(store=self.store_name)
+            self.graph2 = Graph(store=self.store_name)
 
-        self.graph1.open(settings[self.settings1], True)
-        self.graph2.open(settings[self.settings2], True)
+            self.graph1.open(settings[self.settings1], True)
+            self.graph2.open(settings[self.settings2], True)
+        except TTransport.TTransportException:
+            raise SkipTest("Could not connect to cassandra.")
 
         self.oNS = Namespace("http://www.example.org/rdf/things#")
         self.sNS = Namespace("http://www.example.org/rdf/people#")

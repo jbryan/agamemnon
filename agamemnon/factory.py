@@ -319,7 +319,6 @@ class DataStore(object):
             node = self.get_node(type, key)
             node.attributes.update(args)
             self.save_node(node)
-            self.delegate.on_modify(node)
             return node
         except NodeNotFoundException:
             #since node won't get created without args, we will include __id by default
@@ -415,6 +414,9 @@ class DataStore(object):
                             columns=['target__%s' % column for column in columns_to_remove])
                     self.remove(self.get_cf(RELATIONSHIP_CF), key,
                             columns=['target__%s' % column for column in columns_to_remove])
+
+        # update plugins
+        self.on_modify(node)
 
     def get_node(self, type, key):
         try:

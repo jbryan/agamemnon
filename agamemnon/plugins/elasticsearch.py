@@ -1,129 +1,139 @@
 from pyes.es import ES
 from pyes import exceptions
-from pyes.query import WildcardQuery
+from pyes import query
+from itertools import groupby
+from operator import itemgetter
+
 
 class FullTextSearch(object):
-    def __init__(self,server,settings = None ):
+    def __init__(self, server, settings=None):
         self.conn = ES(server)
-        self.indices = {}
         if settings:
             self.settings = settings
         else:
-            self.settings = { 
+            self.settings = {
                 'index': {
-                    'analysis' : {
-                        'analyzer' : {                             
-                            'ngram_analyzer' : {                   
-                                'tokenizer' : 'keyword',
-                                'filter' : ['lowercase', 'filter_ngram'],
-                                'type' : 'custom'
-                            }  
+                    'analysis': {
+                        'analyzer': {
+                            'ngram_analyzer': {
+                                'tokenizer': 'keyword',
+                                'filter': ['lowercase', 'filter_ngram'],
+                                'type': 'custom'
+                            }
                         },
-                        'filter' : {
-                            'filter_ngram' : {                                 
-                                'type' : 'nGram',
-                                'max_gram' : 30,
-                                'min_gram' : 1                                 
-                            }                           
+                        'filter': {
+                            'filter_ngram': {
+                                'type': 'nGram',
+                                'max_gram': 30,
+                                'min_gram': 1
+                            }
                         }
                     }
                 }
             }
+        self.refresh_index_cache()
 
-    def search_index(self, type, index_names, query_string, num_results=-1):
-        ns_index_names= [str(type) + "-_-" + index_name for index_name in index_names]
-        q = WildcardQuery('_all',query_string)
-        results = self.conn.search(query=q, indices=ns_index_names, doc_types=type)
-        try:
-            nodelist = [self.datastore.get_node(type,r['_id']) for r in results['hits']['hits'][0:num_results]+[results['hits']['hits'][num_results]]]
-        except IndexError:
-            nodelist = [self.datastore.get_node(type,r['_id']) for r in results['hits']['hits'][0:num_results]]
+    def search_index_text(self, query_string, fields="_all", **args):
+        q = query.TextQuery(fields, query_string)
+        return self.search_index(q, **args)
+
+    def search_index(self, query, indices=None, num_results=None, node_type=None):
+        results = self.conn.search(
+            query=query, indices=indices, doc_types=node_type)
+        meta_list = [r.get_meta() for r in results[0:num_results]]
+        node_dict = {}
+
+        # fetch nodes grouped by type to reduce number of db calls
+        key = itemgetter('type')
+        for t, grouped_list in groupby(sorted(meta_list, key=key), key=key):
+            ids = [meta['id'] for meta in grouped_list]
+            for node in self.datastore.get_nodes(t, ids):
+                node_dict[(node.type, node.key)] = node
+
+        # return nodes in original order
+        nodelist = [node_dict[(meta['type'], meta['id'])]
+                    for meta in meta_list]
+
         return nodelist
 
     def create_index(self, type, indexed_variables, index_name):
-        ns_index_name = str(type) + "-_-" + index_name
-        self.conn.delete_index_if_exists(ns_index_name)
-        self.conn.create_index(ns_index_name,self.settings)
+        self.conn.create_index_if_missing(index_name, self.settings)
         mapping = {}
         for arg in indexed_variables:
-            mapping[arg] = {'boost':1.0,
-                            'analyzer' : 'ngram_analyzer',
-                            'type': u'string',
+            mapping[arg] = {'boost': 1.0,
+                            'analyzer': 'ngram_analyzer',
+                            'type': 'string',
                             'term_vector': 'with_positions_offsets'}
-        index_settings = {'index_analyzer':'ngram_analyzer',
-                          'search_analyzer':'standard',
-                          'properties':mapping}
-        self.conn.put_mapping(str(type),index_settings,[ns_index_name])
+        index_settings = {'index_analyzer': 'ngram_analyzer',
+                          'search_analyzer': 'standard',
+                          'properties': mapping}
+        self.conn.put_mapping(str(type), index_settings, [index_name])
         self.refresh_index_cache()
         self.populate_index(type, index_name)
 
     def refresh_index_cache(self):
-        self.indices = self.conn.get_indices()
+        try:
+            self.indices = self.conn.get_mapping()
+        except exceptions.IndexMissingException:
+            self.indices = {}
 
-    def delete_index(self,type,index_name):
-        ns_index_name = str(type) + "-_-" + index_name
-        self.conn.delete_index_if_exists(ns_index_name)
+    def delete_index(self, index_name):
+        self.conn.delete_index_if_exists(index_name)
         self.refresh_index_cache()
 
     def populate_index(self, type, index_name):
         #add all the currently existing nodes into the index
-        ns_index_name = str(type) + "-_-" + index_name
         ref_node = self.datastore.get_reference_node(type)
         node_list = [rel.target_node for rel in ref_node.instance.outgoing]
-        mapping = self.conn.get_mapping(type,ns_index_name)
+
         for node in node_list:
             key = node.key
-            index_dict = self.populate_index_document(type,ns_index_name,node.attributes,mapping)
+            index_dict = self.populate_index_document(node, index_name)
+            print index_dict
             try:
-                self.conn.delete(ns_index_name,type,key)
+                self.conn.delete(index_name, type, key)
             except exceptions.NotFoundException:
                 pass
-            self.conn.index(index_dict,ns_index_name,type,key)
-        self.conn.refresh([ns_index_name])
+            self.conn.index(index_dict, index_name, type, key)
+        self.conn.refresh([index_name])
 
-    def on_create(self,node):
+    def on_create(self, node):
         type_indices = self.get_indices_of_type(node.type)
-        for ns_index_name in type_indices:
-            mapping = self.conn.get_mapping(node.type,ns_index_name)
-            index_dict = self.populate_index_document(node.type,ns_index_name,node.attributes,mapping)
-            self.conn.index(index_dict,ns_index_name,node.type,node.key)
-            self.conn.refresh([ns_index_name])
+        for index_name in type_indices:
+            index_dict = self.populate_index_document(node, index_name)
+            self.conn.index(index_dict, index_name, node.type, node.key)
+            self.conn.refresh([index_name])
 
     def on_delete(self, node):
         type_indices = self.get_indices_of_type(node.type)
-        for ns_index_name in type_indices:
+        for index_name in type_indices:
             try:
-                self.conn.delete(ns_index_name,node.type,node.key)
-                self.conn.refresh([ns_index_name])
+                self.conn.delete(index_name, node.type, node.key)
+                self.conn.refresh([index_name])
             except exceptions.NotFoundException:
                 pass
-           
+
     def on_modify(self, node):
         type_indices = self.get_indices_of_type(node.type)
-        for ns_index_name in type_indices:
-            mapping = self.conn.get_mapping(node.type,ns_index_name)
-            index_dict = self.populate_index_document(node.type,ns_index_name,node.attributes,mapping)
+        for index_name in type_indices:
+            index_dict = self.populate_index_document(node, index_name)
             try:
-                self.conn.delete(ns_index_name,node.type,node.key)
-                self.conn.index(index_dict,ns_index_name,node.type,node.key)
-                self.conn.refresh([ns_index_name])
+                self.conn.delete(index_name, node.type, node.key)
+                self.conn.index(index_dict, index_name, node.type, node.key)
+                self.conn.refresh([index_name])
             except exceptions.NotFoundException:
                 pass
 
-    def get_indices_of_type(self,type):
-        type_indices = []
-        for index in self.indices.keys():
-            if index.startswith(type+"-_-"):
-                type_indices.append(index)
+    def get_indices_of_type(self, type):
+        type_indices = [
+            key for key, value in self.indices.items()
+            if type in value
+        ]
         return type_indices
 
-    def populate_index_document(self,type,ns_index_name,attributes,mapping):
-        indexed_variables = mapping[type]['properties'].keys()
-        index_dict = {}
-        for arg in indexed_variables:
-            try:
-                index_dict[arg] = attributes[arg]
-            except KeyError:
-                #if this attribute doesn't exist for this node, just pass
-                pass
+    def populate_index_document(self, node, index_name):
+        indexed_variables = self.indices[index_name][node.type]['properties'].keys()
+        index_dict = {
+            field: node[field] for field in indexed_variables
+        }
         return index_dict
